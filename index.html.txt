@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-Invoice PWA</title>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        body { font-family: sans-serif; padding: 10px; }
+        form { display: flex; flex-direction: column; max-width: 600px; margin: auto; }
+        label { margin-bottom: 10px; }
+        input, select, textarea { width: 100%; box-sizing: border-box; padding: 8px; }
+        button { margin-top: 10px; padding: 10px; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+        @media (max-width: 480px) { body { padding: 5px; } }
+    </style>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+        }
+    </script>
+</head>
+<body>
+    <h1>Malaysia e-Invoice App</h1>
+    <h2>Individual Invoice</h2>
+    <form id="invoiceForm">
+        <label>Supplier Name: <input name="supplierName" required></label>
+        <label>Supplier TIN: <input name="supplierTIN" required></label>
+        <label>Buyer Name: <input name="buyerName" required></label>
+        <label>Buyer TIN: <input name="buyerTIN" required></label>
+        <label>Description: <input name="description" required></label>
+        <label>Unit Price: <input name="unitPrice" type="number" required></label>
+        <label>Tax Type: <select name="taxType"><option>Sales Tax</option><option>Service Tax</option></select></label>
+        <label>Tax Rate: <input name="taxRate" type="number"></label>
+        <button type="submit">Generate JSON</button>
+    </form>
+    <h2>Consolidated Invoice</h2>
+    <form id="consolidatedForm">
+        <label>Supplier Name: <input name="supplierName" required></label>
+        <label>Supplier TIN: <input name="supplierTIN" required></label>
+        <input type="hidden" name="buyerName" value="General Public">
+        <input type="hidden" name="buyerTIN" value="EI00000000010">
+        <input type="hidden" name="buyerRegId" value="NA">
+        <input type="hidden" name="buyerAddress" value="NA">
+        <input type="hidden" name="buyerContact" value="NA">
+        <input type="hidden" name="buyerSST" value="NA">
+        <label>Description (include receipt refs): <textarea name="description" required></textarea></label>
+        <label>Total Amount: <input name="totalAmount" type="number" required></label>
+        <label>Tax Type: <select name="taxType"><option>Sales Tax</option><option>Service Tax</option></select></label>
+        <label>Tax Rate: <input name="taxRate" type="number"></label>
+        <button type="submit">Generate JSON</button>
+    </form>
+    <pre id="output"></pre>
+    <script>
+        function handleSubmit(e, formId) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+        }
+        document.getElementById('invoiceForm').addEventListener('submit', (e) => handleSubmit(e, 'invoiceForm'));
+        document.getElementById('consolidatedForm').addEventListener('submit', (e) => handleSubmit(e, 'consolidatedForm'));
+    </script>
+</body>
+</html>
