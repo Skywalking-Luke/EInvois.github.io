@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invoice PWA</title>
     <link rel="manifest" href="/manifest.json">
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body { font-family: sans-serif; padding: 10px; }
         form { display: flex; flex-direction: column; max-width: 600px; margin: auto; }
@@ -50,7 +52,7 @@
             <label>Bank Details: <textarea name="bankDetails" required>Bank Name: Maybank\nAccount Name: LH Ventures\nAccount Number: 555087234884</textarea></label>
             <label>Note: <textarea name="note" required>We appreciate your business! 1% of each invoice will be donated to our local orphanage.</textarea></label>
             <button type="submit">Generate Invoice</button>
-            <button type="button" id="downloadCSV">Download CSV</button>
+            <button type="button" id="downloadPDF">Download PDF</button>
         </form>
     </section>
     <section id="invoicePreview" style="display: none;">
@@ -61,7 +63,7 @@
         const itemsDiv = document.getElementById('items');
         const addItemBtn = document.getElementById('addItem');
         const preview = document.getElementById('invoicePreview');
-        const downloadBtn = document.getElementById('downloadCSV');
+        const downloadBtn = document.getElementById('downloadPDF');
 
         function formatDate(dateStr) {
             const date = new Date(dateStr);
@@ -117,10 +119,10 @@
             const html = `
                 <table>
                     <tr><td>Sales Invoice</td><td colspan="2"></td><td>${data.get('supplier').replace(/\n/g, '<br>')}</td><td colspan="4"></td></tr>
-                    <tr><td>Invoice No.</td><td>\( {data.get('invoiceNo')}</td><td></td><td>Date</td><td> \){formatDate(data.get('date'))}</td><td colspan="3"></td></tr>
-                    <tr><td>Billed to</td><td>\( {data.get('billedToName')}</td><td></td><td> \){data.get('billedToAddress').replace(/\n/g, '<br>')}</td><td colspan="4"></td></tr>
+                    <tr><td>Invoice No.</td><td>${data.get('invoiceNo')}</td><td></td><td>Date</td><td>${formatDate(data.get('date'))}</td><td colspan="3"></td></tr>
+                    <tr><td>Billed to</td><td>${data.get('billedToName')}</td><td></td><td>${data.get('billedToAddress').replace(/\n/g, '<br>')}</td><td colspan="4"></td></tr>
                     <tr><td>Item</td><td></td><td>Quantity</td><td>Unit Price</td><td>Total Amount</td><td colspan="3"></td></tr>
-                    \( {items.map(item => `<tr><td> \){item.desc}</td><td></td><td>\( {item.qty}</td><td> \){item.unit}</td><td>${item.total}</td><td colspan="3"></td></tr>`).join('')}
+                    ${items.map(item => `<tr><td>${item.desc}</td><td></td><td>${item.qty}</td><td>${item.unit}</td><td>${item.total}</td><td colspan="3"></td></tr>`).join('')}
                     <tr><td colspan="8"></td></tr> <!-- Empty rows -->
                     <tr><td colspan="8"></td></tr>
                     <tr><td colspan="8"></td></tr>
@@ -129,7 +131,7 @@
                     <tr><td colspan="3"></td><td>Discount</td><td>RM${discount.toFixed(2)}</td><td colspan="3"></td></tr>
                     <tr><td colspan="3"></td><td>Grand Total</td><td>RM${grandTotal.toFixed(2)}</td><td colspan="3"></td></tr>
                     <tr><td colspan="8"></td></tr>
-                    <tr><td>Please settle your payment on or before:</td><td>\( {formatDate(data.get('dueDate'))}</td><td></td><td> \){data.get('bankDetails').replace(/\n/g, '<br>')}</td><td colspan="4"></td></tr>
+                    <tr><td>Please settle your payment on or before:</td><td>${formatDate(data.get('dueDate'))}</td><td></td><td>${data.get('bankDetails').replace(/\n/g, '<br>')}</td><td colspan="4"></td></tr>
                     <tr><td colspan="8">${data.get('note')}</td></tr>
                 </table>
             `;
@@ -139,55 +141,23 @@
         });
 
         downloadBtn.addEventListener('click', () => {
-            // Similar to generate, but create CSV string
-            const data = new FormData(form);
-            const items = [];
-            document.querySelectorAll('.item-row').forEach(row => {
-                items.push([
-                    row.querySelector('.item-desc').value,
-                    '',
-                    row.querySelector('.item-qty').value,
-                    `RM${parseFloat(row.querySelector('.item-unit').value).toFixed(2)}`,
-                    `RM${parseFloat(row.querySelector('.item-total').value).toFixed(2)}`,
-                    '', '', ''
-                ]);
+            if (preview.style.display === 'none') {
+                alert('Please generate the invoice first.');
+                return;
+            }
+            html2canvas(preview, {scale: 2}).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = doc.internal.pageSize.getWidth();
+                const pdfHeight = doc.internal.pageSize.getHeight();
+                const imgProps = doc.getImageProperties(imgData);
+                const ratio = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
+                const width = imgProps.width * ratio;
+                const height = imgProps.height * ratio;
+                doc.addImage(imgData, 'PNG', (pdfWidth - width) / 2, (pdfHeight - height) / 2, width, height);
+                doc.save(`invoice_${document.querySelector('[name="invoiceNo"]').value}.pdf`);
             });
-
-            let subtotal = items.reduce((sum, item) => sum + parseFloat(item[4].slice(2)), 0);
-            const discount = parseFloat(data.get('discount')) || 0;
-            const grandTotal = subtotal - discount;
-
-            const csvRows = [
-                [' Sales Invoice', '', '', data.get('supplier'), '', '', '', ''],
-                ['Invoice No.', data.get('invoiceNo'), '', 'Date', formatDate(data.get('date')), '', '', ''],
-                ['Billed to', data.get('billedToName'), '', data.get('billedToAddress'), '', '', '', ''],
-                ['Item', '', 'Quantity', 'Unit Price', 'Total Amount', '', '', ''],
-                ...items,
-                ['', '', '', '', '', '', '', ''],
-                ['', '', '', '', '', '', '', ''],
-                ['', '', '', '', '', '', '', ''],
-                ['', '', '', '', '', '', '', ''],
-                ['', '', '', 'Subtotal', `RM${subtotal.toFixed(2)}`, '', '', ''],
-                ['', '', '', 'Discount', `RM${discount.toFixed(2)}`, '', '', ''],
-                ['', '', '', 'Grand Total', `RM${grandTotal.toFixed(2)}`, '', '', ''],
-                ['', '', '', '', '', '', '', ''],
-                ['Please settle your payment on or before:', formatDate(data.get('dueDate')), '', data.get('bankDetails'), '', '', '', ''],
-                [data.get('note'), '', '', '', '', '', '', ''],
-                ['', '', '', '', '', '', '', ''],
-                ['', '', '', '', '', '', '', ''],
-                ['', '', '', '', '', '', '', ''],
-                ['', '', '', '', '', '', '', '']
-            ];
-
-            const csvContent = csvRows.map(row => row.map(cell => `"${cell.replace(/"/g, '""').replace(/\n/g, '\\n')}"`).join(',')).join('\n');
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `invoice_${data.get('invoiceNo')}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         });
     </script>
 </body>
