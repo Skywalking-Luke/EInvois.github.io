@@ -3,16 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>e-Invoice PWA</title>
+    <title>Invoice PWA</title>
     <link rel="manifest" href="/manifest.json">
     <style>
         body { font-family: sans-serif; padding: 10px; }
         form { display: flex; flex-direction: column; max-width: 600px; margin: auto; }
         label { margin-bottom: 10px; }
-        input, select, textarea { width: 100%; box-sizing: border-box; padding: 8px; }
+        input, textarea, select { width: 100%; box-sizing: border-box; padding: 8px; }
         button { margin-top: 10px; padding: 10px; }
-        pre { white-space: pre-wrap; word-wrap: break-word; }
-        @media (max-width: 480px) { body { padding: 5px; } }
+        #items { margin-bottom: 20px; }
+        .item-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .item-row input { flex: 1; }
+        #invoicePreview { margin-top: 20px; border: 1px solid #ccc; padding: 20px; max-width: 800px; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 5px; }
+        @media (max-width: 480px) { body { padding: 5px; } .item-row { flex-direction: column; } }
+        @media print { #formSection, button { display: none; } }
     </style>
     <script>
         if ('serviceWorker' in navigator) {
@@ -21,45 +27,168 @@
     </script>
 </head>
 <body>
-    <h1>Malaysia e-Invoice App</h1>
-    <h2>Individual Invoice</h2>
-    <form id="invoiceForm">
-        <label>Supplier Name: <input name="supplierName" required></label>
-        <label>Supplier TIN: <input name="supplierTIN" required></label>
-        <label>Buyer Name: <input name="buyerName" required></label>
-        <label>Buyer TIN: <input name="buyerTIN" required></label>
-        <label>Description: <input name="description" required></label>
-        <label>Unit Price: <input name="unitPrice" type="number" required></label>
-        <label>Tax Type: <select name="taxType"><option>Sales Tax</option><option>Service Tax</option></select></label>
-        <label>Tax Rate: <input name="taxRate" type="number"></label>
-        <button type="submit">Generate JSON</button>
-    </form>
-    <h2>Consolidated Invoice</h2>
-    <form id="consolidatedForm">
-        <label>Supplier Name: <input name="supplierName" required></label>
-        <label>Supplier TIN: <input name="supplierTIN" required></label>
-        <input type="hidden" name="buyerName" value="General Public">
-        <input type="hidden" name="buyerTIN" value="EI00000000010">
-        <input type="hidden" name="buyerRegId" value="NA">
-        <input type="hidden" name="buyerAddress" value="NA">
-        <input type="hidden" name="buyerContact" value="NA">
-        <input type="hidden" name="buyerSST" value="NA">
-        <label>Description (include receipt refs): <textarea name="description" required></textarea></label>
-        <label>Total Amount: <input name="totalAmount" type="number" required></label>
-        <label>Tax Type: <select name="taxType"><option>Sales Tax</option><option>Service Tax</option></select></label>
-        <label>Tax Rate: <input name="taxRate" type="number"></label>
-        <button type="submit">Generate JSON</button>
-    </form>
-    <pre id="output"></pre>
+    <h1>Malaysia Invoice Generator</h1>
+    <section id="formSection">
+        <form id="invoiceForm">
+            <label>Supplier Name and Address: <textarea name="supplier" required>B-02-03, Blok B, Residensi Lili,\n71800, Nilai, Negeri Sembilan</textarea></label>
+            <label>Invoice No.: <input name="invoiceNo" required value="20251220512"></label>
+            <label>Date: <input name="date" type="date" required value="2025-12-20"></label>
+            <label>Billed To Name: <input name="billedToName" required value="PS BANDAR BARU NILAI"></label>
+            <label>Billed To Address: <textarea name="billedToAddress" required>STESEN MINYAK MYLIEIZ\nLOT 9252, BANDAR BARU NILAI, MUKIM LABU\n71800 NILAI, NEGERI SEMBILAN</textarea></label>
+            <div id="items">
+                <h3>Items</h3>
+                <div class="item-row">
+                    <input placeholder="Item Description" class="item-desc">
+                    <input placeholder="Quantity" type="number" class="item-qty">
+                    <input placeholder="Unit Price (RM)" type="number" step="0.01" class="item-unit">
+                    <input placeholder="Total (auto)" type="number" step="0.01" class="item-total" readonly>
+                </div>
+                <button type="button" id="addItem">Add Item</button>
+            </div>
+            <label>Discount (RM): <input name="discount" type="number" step="0.01" value="0.00"></label>
+            <label>Payment Due Date: <input name="dueDate" type="date" required value="2026-01-19"></label>
+            <label>Bank Details: <textarea name="bankDetails" required>Bank Name: Maybank\nAccount Name: LH Ventures\nAccount Number: 555087234884</textarea></label>
+            <label>Note: <textarea name="note" required>We appreciate your business! 1% of each invoice will be donated to our local orphanage.</textarea></label>
+            <button type="submit">Generate Invoice</button>
+            <button type="button" id="downloadCSV">Download CSV</button>
+        </form>
+    </section>
+    <section id="invoicePreview" style="display: none;">
+        <!-- Generated invoice will go here -->
+    </section>
     <script>
-        function handleSubmit(e, formId) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData);
-            document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+        const form = document.getElementById('invoiceForm');
+        const itemsDiv = document.getElementById('items');
+        const addItemBtn = document.getElementById('addItem');
+        const preview = document.getElementById('invoicePreview');
+        const downloadBtn = document.getElementById('downloadCSV');
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
         }
-        document.getElementById('invoiceForm').addEventListener('submit', (e) => handleSubmit(e, 'invoiceForm'));
-        document.getElementById('consolidatedForm').addEventListener('submit', (e) => handleSubmit(e, 'consolidatedForm'));
+
+        function addItemRow(desc = '', qty = '', unit = '', total = '') {
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.innerHTML = `
+                <input placeholder="Item Description" class="item-desc" value="${desc}">
+                <input placeholder="Quantity" type="number" class="item-qty" value="${qty}">
+                <input placeholder="Unit Price (RM)" type="number" step="0.01" class="item-unit" value="${unit}">
+                <input placeholder="Total (auto)" type="number" step="0.01" class="item-total" value="${total}" readonly>
+                <button type="button" class="removeItem">Remove</button>
+            `;
+            itemsDiv.insertBefore(row, addItemBtn);
+            row.querySelector('.removeItem').addEventListener('click', () => row.remove());
+            row.querySelector('.item-qty').addEventListener('input', calculateTotal);
+            row.querySelector('.item-unit').addEventListener('input', calculateTotal);
+        }
+
+        function calculateTotal(e) {
+            const row = e.target.closest('.item-row');
+            const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+            const unit = parseFloat(row.querySelector('.item-unit').value) || 0;
+            row.querySelector('.item-total').value = (qty * unit).toFixed(2);
+        }
+
+        addItemBtn.addEventListener('click', () => addItemRow());
+
+        // Add default items
+        addItemRow('CRISPY CHIPS IKAN', 30, 18.00, 540.00);
+        addItemRow('SO CHEWS (MIXED FLAVOR)', 200, 3.50, 700.00);
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const data = new FormData(form);
+            const items = [];
+            document.querySelectorAll('.item-row').forEach(row => {
+                items.push({
+                    desc: row.querySelector('.item-desc').value,
+                    qty: row.querySelector('.item-qty').value,
+                    unit: `RM${parseFloat(row.querySelector('.item-unit').value).toFixed(2)}`,
+                    total: `RM${parseFloat(row.querySelector('.item-total').value).toFixed(2)}`
+                });
+            });
+
+            let subtotal = items.reduce((sum, item) => sum + parseFloat(item.total.slice(2)), 0);
+            const discount = parseFloat(data.get('discount')) || 0;
+            const grandTotal = subtotal - discount;
+
+            const html = `
+                <table>
+                    <tr><td>Sales Invoice</td><td colspan="2"></td><td>${data.get('supplier').replace(/\n/g, '<br>')}</td><td colspan="4"></td></tr>
+                    <tr><td>Invoice No.</td><td>\( {data.get('invoiceNo')}</td><td></td><td>Date</td><td> \){formatDate(data.get('date'))}</td><td colspan="3"></td></tr>
+                    <tr><td>Billed to</td><td>\( {data.get('billedToName')}</td><td></td><td> \){data.get('billedToAddress').replace(/\n/g, '<br>')}</td><td colspan="4"></td></tr>
+                    <tr><td>Item</td><td></td><td>Quantity</td><td>Unit Price</td><td>Total Amount</td><td colspan="3"></td></tr>
+                    \( {items.map(item => `<tr><td> \){item.desc}</td><td></td><td>\( {item.qty}</td><td> \){item.unit}</td><td>${item.total}</td><td colspan="3"></td></tr>`).join('')}
+                    <tr><td colspan="8"></td></tr> <!-- Empty rows -->
+                    <tr><td colspan="8"></td></tr>
+                    <tr><td colspan="8"></td></tr>
+                    <tr><td colspan="8"></td></tr>
+                    <tr><td colspan="3"></td><td>Subtotal</td><td>RM${subtotal.toFixed(2)}</td><td colspan="3"></td></tr>
+                    <tr><td colspan="3"></td><td>Discount</td><td>RM${discount.toFixed(2)}</td><td colspan="3"></td></tr>
+                    <tr><td colspan="3"></td><td>Grand Total</td><td>RM${grandTotal.toFixed(2)}</td><td colspan="3"></td></tr>
+                    <tr><td colspan="8"></td></tr>
+                    <tr><td>Please settle your payment on or before:</td><td>\( {formatDate(data.get('dueDate'))}</td><td></td><td> \){data.get('bankDetails').replace(/\n/g, '<br>')}</td><td colspan="4"></td></tr>
+                    <tr><td colspan="8">${data.get('note')}</td></tr>
+                </table>
+            `;
+            preview.innerHTML = html;
+            preview.style.display = 'block';
+            window.scrollTo(0, preview.offsetTop);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            // Similar to generate, but create CSV string
+            const data = new FormData(form);
+            const items = [];
+            document.querySelectorAll('.item-row').forEach(row => {
+                items.push([
+                    row.querySelector('.item-desc').value,
+                    '',
+                    row.querySelector('.item-qty').value,
+                    `RM${parseFloat(row.querySelector('.item-unit').value).toFixed(2)}`,
+                    `RM${parseFloat(row.querySelector('.item-total').value).toFixed(2)}`,
+                    '', '', ''
+                ]);
+            });
+
+            let subtotal = items.reduce((sum, item) => sum + parseFloat(item[4].slice(2)), 0);
+            const discount = parseFloat(data.get('discount')) || 0;
+            const grandTotal = subtotal - discount;
+
+            const csvRows = [
+                [' Sales Invoice', '', '', data.get('supplier'), '', '', '', ''],
+                ['Invoice No.', data.get('invoiceNo'), '', 'Date', formatDate(data.get('date')), '', '', ''],
+                ['Billed to', data.get('billedToName'), '', data.get('billedToAddress'), '', '', '', ''],
+                ['Item', '', 'Quantity', 'Unit Price', 'Total Amount', '', '', ''],
+                ...items,
+                ['', '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', ''],
+                ['', '', '', 'Subtotal', `RM${subtotal.toFixed(2)}`, '', '', ''],
+                ['', '', '', 'Discount', `RM${discount.toFixed(2)}`, '', '', ''],
+                ['', '', '', 'Grand Total', `RM${grandTotal.toFixed(2)}`, '', '', ''],
+                ['', '', '', '', '', '', '', ''],
+                ['Please settle your payment on or before:', formatDate(data.get('dueDate')), '', data.get('bankDetails'), '', '', '', ''],
+                [data.get('note'), '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', '']
+            ];
+
+            const csvContent = csvRows.map(row => row.map(cell => `"${cell.replace(/"/g, '""').replace(/\n/g, '\\n')}"`).join(',')).join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `invoice_${data.get('invoiceNo')}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
     </script>
 </body>
 </html>
