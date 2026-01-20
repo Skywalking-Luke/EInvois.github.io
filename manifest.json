@@ -1,9 +1,9 @@
 {
-    "name": "Invoice PWA",
-    "short_name": "Invoice",
+    "name": "LH Invoice PWA",
+    "short_name": "LHInvoice",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#fff",
-    "theme_color": "#000",
+    "theme_color": "#b0a295",
     "icons": [{"src": "icon.png", "sizes": "192x192", "type": "image/png"}]
 }
