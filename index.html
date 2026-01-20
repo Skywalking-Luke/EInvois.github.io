@@ -3,162 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice PWA</title>
+    <title>LH Invoice PWA</title>
     <link rel="manifest" href="/manifest.json">
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 10px; }
-        form { display: flex; flex-direction: column; max-width: 600px; margin: auto; }
-        label { margin-bottom: 10px; }
-        input, textarea, select { width: 100%; box-sizing: border-box; padding: 8px; }
-        button { margin-top: 10px; padding: 10px; }
-        #items { margin-bottom: 20px; }
-        .item-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        .item-row input { flex: 1; }
-        #invoicePreview { margin-top: 20px; border: 1px solid #ccc; padding: 20px; max-width: 800px; }
-        table { width: 100%; border-collapse: collapse; }
-        td { padding: 5px; }
-        @media (max-width: 480px) { body { padding: 5px; } .item-row { flex-direction: column; } }
-        @media print { #formSection, button { display: none; } }
+        body { font-family: sans-serif; padding: 10px; background: #fff; }
+        form { max-width: 800px; margin: auto; }
+        label { display: block; margin: 10px 0; }
+        input, select, textarea { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { padding: 10px; margin: 5px 0; }
+        #items { margin: 20px 0; }
+        .item-row { display: grid; grid-template-columns: 3fr 1fr 1fr 1fr; gap: 10px; margin: 10px 0; }
+        #invoicePreview { max-width: 800px; margin: auto; padding: 20px; border: 1px solid #ccc; display: none; font-size: 14px; }
+        .header { background: #b0a295; padding: 10px; text-align: center; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 24px; font-weight: bold; }
+        .supplier { text-align: right; font-size: 12px; }
+        .info-row { display: flex; justify-content: space-between; margin: 10px 0; }
+        .billed-to { margin: 20px 0; }
+        .items-table { width: 100%; border-collapse: collapse; }
+        .items-table th { background: #b0a295; color: #fff; padding: 5px; text-align: left; }
+        .items-table td { border-bottom: 1px solid #ddd; padding: 5px; }
+        .totals { text-align: right; margin: 20px 0; }
+        .totals div { background: #f9f9f9; padding: 5px; width: 200px; margin-left: auto; }
+        .payment { display: flex; justify-content: space-between; margin: 20px 0; }
+        .note { text-align: center; font-size: 12px; }
+        @media (max-width: 600px) { .item-row { grid-template-columns: 1fr; } }
+        @media print { #formSection { display: none; } #invoicePreview { display: block; border: none; } }
     </style>
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
-        }
+        if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
     </script>
 </head>
 <body>
-    <h1>LH VENTURES Invoice Generator</h1>
+    <h1>LH Ventures Invoice Generator</h1>
     <section id="formSection">
         <form id="invoiceForm">
-            <label>Supplier Name and Address: <textarea name="supplier" required>B-02-03, Blok B, Residensi Lili,\n71800, Nilai, Negeri Sembilan</textarea></label>
-            <label>Invoice No.: <input name="invoiceNo" required value="20251220512"></label>
-            <label>Date: <input name="date" type="date" required value="2025-12-20"></label>
-            <label>Billed To Name: <input name="billedToName" required value="PS BANDAR BARU NILAI"></label>
-            <label>Billed To Address: <textarea name="billedToAddress" required>STESEN MINYAK MYLIEIZ\nLOT 9252, BANDAR BARU NILAI, MUKIM LABU\n71800 NILAI, NEGERI SEMBILAN</textarea></label>
+            <label>Invoice No.: <select name="invoiceNo" id="invoiceNoSelect"></select> <button type="button" onclick="addOption('invoiceNo')">Add New</button></label>
+            <label>Date: <select name="date" id="dateSelect" type="date"></select> <button type="button" onclick="addOption('date')">Add New</button></label>
+            <label>Billed To Name: <select name="billedToName" id="billedToNameSelect"></select> <button type="button" onclick="addOption('billedToName')">Add New</button></label>
+            <label>Billed To Address: <textarea name="billedToAddress" id="billedToAddressInput"></textarea></label>
             <div id="items">
                 <h3>Items</h3>
                 <div class="item-row">
-                    <input placeholder="Item Description" class="item-desc">
-                    <input placeholder="Quantity" type="number" class="item-qty">
-                    <input placeholder="Unit Price (RM)" type="number" step="0.01" class="item-unit">
-                    <input placeholder="Total (auto)" type="number" step="0.01" class="item-total" readonly>
+                    <select class="item-desc"></select>
+                    <select class="item-qty"></select>
+                    <select class="item-unit"></select>
+                    <input class="item-total" readonly>
                 </div>
                 <button type="button" id="addItem">Add Item</button>
             </div>
-            <label>Discount (RM): <input name="discount" type="number" step="0.01" value="0.00"></label>
-            <label>Payment Due Date: <input name="dueDate" type="date" required value="2026-01-19"></label>
-            <label>Bank Details: <textarea name="bankDetails" required>Bank Name: Maybank\nAccount Name: LH Ventures\nAccount Number: 555087234884</textarea></label>
-            <label>Note: <textarea name="note" required>We appreciate your business!</textarea></label>
+            <label>Discount (RM): <select name="discount" id="discountSelect"></select> <button type="button" onclick="addOption('discount')">Add New</button></label>
+            <label>Due Date: <input name="dueDate" type="date" value="2026-01-19"></label>
             <button type="submit">Generate Invoice</button>
             <button type="button" id="downloadPDF">Download PDF</button>
+            <button type="button" id="clearForm">Clear Form</button>
         </form>
     </section>
-    <section id="invoicePreview" style="display: none;">
-        <!-- Generated invoice will go here -->
+    <section id="invoicePreview">
+        <div class="header">
+            <div class="logo">Sales Invoice LH</div>
+            <div class="supplier">LH Ventures<br>B-02-03, Blok B, Residensi Lili,<br>71800, Nilai, Negeri Sembilan</div>
+        </div>
+        <div class="info-row">
+            <span>Invoice No. <span id="prevInvoiceNo"></span></span>
+            <span>Date <span id="prevDate"></span></span>
+        </div>
+        <div class="billed-to">
+            Billed to <span id="prevBilledName"></span><br>
+            <span id="prevBilledAddress"></span>
+        </div>
+        <table class="items-table">
+            <thead><tr><th>Item</th><th>Quantity</th><th>Unit Price</th><th>Total Amount</th></tr></thead>
+            <tbody id="prevItems"></tbody>
+        </table>
+        <div class="totals">
+            <div>Subtotal <span id="prevSubtotal"></span></div>
+            <div>Discount <span id="prevDiscount"></span></div>
+            <div style="background: #b0a295; color: #fff;">Grand Total <span id="prevGrandTotal"></span></div>
+        </div>
+        <div class="payment">
+            <div>Please settle your payment on or before: <span id="prevDueDate"></span></div>
+            <div>Bank Name: Maybank<br>Account Name: LH Ventures<br>Account Number: 555087234884</div>
+        </div>
+        <div class="note">We appreciate your business! 1% of each invoice will be donated to our local orphanage.</div>
     </section>
     <script>
         const form = document.getElementById('invoiceForm');
-        const itemsDiv = document.getElementById('items');
-        const addItemBtn = document.getElementById('addItem');
         const preview = document.getElementById('invoicePreview');
-        const downloadBtn = document.getElementById('downloadPDF');
+        const storageKeys = ['invoiceNo', 'date', 'billedToName', 'discount', 'items'];
+        const storage = {};
 
-        function formatDate(dateStr) {
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        storageKeys.forEach(key => {
+            storage[key] = JSON.parse(localStorage.getItem(key)) || [];
+            updateSelect(key);
+        });
+
+        function updateSelect(key) {
+            const select = document.getElementById(`${key}Select`);
+            if (select) {
+                select.innerHTML = storage[key].map(val => `<option>${val}</option>`).join('');
+                select.addEventListener('change', () => {
+                    if (key === 'billedToName') {
+                        // Assume addresses stored separately or same, adjust if needed
+                        document.getElementById('billedToAddressInput').value = storage['billedToAddress']?.[storage[key].indexOf(select.value)] || '';
+                    }
+                });
+            }
         }
 
-        function addItemRow(desc = '', qty = '', unit = '', total = '') {
+        function addOption(key) {
+            const val = prompt(`Add new ${key}:`);
+            if (val) {
+                storage[key].push(val);
+                localStorage.setItem(key, JSON.stringify(storage[key]));
+                updateSelect(key);
+            }
+        }
+
+        function addItemRow() {
             const row = document.createElement('div');
             row.className = 'item-row';
             row.innerHTML = `
-                <input placeholder="Item Description" class="item-desc" value="${desc}">
-                <input placeholder="Quantity" type="number" class="item-qty" value="${qty}">
-                <input placeholder="Unit Price (RM)" type="number" step="0.01" class="item-unit" value="${unit}">
-                <input placeholder="Total (auto)" type="number" step="0.01" class="item-total" value="${total}" readonly>
-                <button type="button" class="removeItem">Remove</button>
+                <select class="item-desc">\( {storage.items?.map(i => `<option> \){i.desc}</option>`).join('') || ''}</select>
+                <input class="item-qty" type="number" placeholder="Quantity">
+                <input class="item-unit" type="number" step="0.01" placeholder="Unit Price (RM)">
+                <input class="item-total" readonly placeholder="Total">
+                <button type="button" onclick="this.parentNode.remove(); calculateTotals();">Remove</button>
             `;
-            itemsDiv.insertBefore(row, addItemBtn);
-            row.querySelector('.removeItem').addEventListener('click', () => row.remove());
-            row.querySelector('.item-qty').addEventListener('input', calculateTotal);
-            row.querySelector('.item-unit').addEventListener('input', calculateTotal);
+            document.getElementById('items').insertBefore(row, document.getElementById('addItem'));
+            row.querySelector('.item-qty').addEventListener('input', calculateRow);
+            row.querySelector('.item-unit').addEventListener('input', calculateRow);
         }
 
-        function calculateTotal(e) {
+        function calculateRow(e) {
             const row = e.target.closest('.item-row');
             const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
             const unit = parseFloat(row.querySelector('.item-unit').value) || 0;
             row.querySelector('.item-total').value = (qty * unit).toFixed(2);
+            calculateTotals();
         }
 
-        addItemBtn.addEventListener('click', () => addItemRow());
+        function calculateTotals() {
+            let subtotal = 0;
+            document.querySelectorAll('.item-total').forEach(t => subtotal += parseFloat(t.value) || 0);
+            const discount = parseFloat(form.discount.value) || 0;
+            document.getElementById('prevSubtotal').textContent = `RM${subtotal.toFixed(2)}`;
+            document.getElementById('prevDiscount').textContent = `RM${discount.toFixed(2)}`;
+            document.getElementById('prevGrandTotal').textContent = `RM${(subtotal - discount).toFixed(2)}`;
+        }
 
-        // Add default items
-        addItemRow('CRISPY CHIPS IKAN', 30, 18.00, 540.00);
-        addItemRow('SO CHEWS (MIXED FLAVOR)', 200, 3.50, 700.00);
+        document.getElementById('addItem').addEventListener('click', addItemRow);
+        addItemRow(); addItemRow(); // Defaults
 
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', e => {
             e.preventDefault();
             const data = new FormData(form);
-            const items = [];
+            document.getElementById('prevInvoiceNo').textContent = data.get('invoiceNo');
+            document.getElementById('prevDate').textContent = new Date(data.get('date')).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'});
+            document.getElementById('prevBilledName').textContent = data.get('billedToName');
+            document.getElementById('prevBilledAddress').textContent = data.get('billedToAddress').replace(/\n/g, '<br>');
+            document.getElementById('prevDueDate').textContent = new Date(data.get('dueDate')).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'});
+            const itemsBody = document.getElementById('prevItems');
+            itemsBody.innerHTML = '';
             document.querySelectorAll('.item-row').forEach(row => {
-                items.push({
-                    desc: row.querySelector('.item-desc').value,
-                    qty: row.querySelector('.item-qty').value,
-                    unit: `RM${parseFloat(row.querySelector('.item-unit').value).toFixed(2)}`,
-                    total: `RM${parseFloat(row.querySelector('.item-total').value).toFixed(2)}`
-                });
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>\( {row.querySelector('.item-desc').value}</td><td> \){row.querySelector('.item-qty').value}</td><td>RM\( {parseFloat(row.querySelector('.item-unit').value).toFixed(2)}</td><td>RM \){row.querySelector('.item-total').value}</td>`;
+                itemsBody.appendChild(tr);
             });
-
-            let subtotal = items.reduce((sum, item) => sum + parseFloat(item.total.slice(2)), 0);
-            const discount = parseFloat(data.get('discount')) || 0;
-            const grandTotal = subtotal - discount;
-
-            const html = `
-                <table>
-                    <tr><td>Sales Invoice</td><td colspan="2"></td><td>${data.get('supplier').replace(/\n/g, '<br>')}</td><td colspan="4"></td></tr>
-                    <tr><td>Invoice No.</td><td>${data.get('invoiceNo')}</td><td></td><td>Date</td><td>${formatDate(data.get('date'))}</td><td colspan="3"></td></tr>
-                    <tr><td>Billed to</td><td>${data.get('billedToName')}</td><td></td><td>${data.get('billedToAddress').replace(/\n/g, '<br>')}</td><td colspan="4"></td></tr>
-                    <tr><td>Item</td><td></td><td>Quantity</td><td>Unit Price</td><td>Total Amount</td><td colspan="3"></td></tr>
-                    ${items.map(item => `<tr><td>${item.desc}</td><td></td><td>${item.qty}</td><td>${item.unit}</td><td>${item.total}</td><td colspan="3"></td></tr>`).join('')}
-                    <tr><td colspan="8"></td></tr> <!-- Empty rows -->
-                    <tr><td colspan="8"></td></tr>
-                    <tr><td colspan="8"></td></tr>
-                    <tr><td colspan="8"></td></tr>
-                    <tr><td colspan="3"></td><td>Subtotal</td><td>RM${subtotal.toFixed(2)}</td><td colspan="3"></td></tr>
-                    <tr><td colspan="3"></td><td>Discount</td><td>RM${discount.toFixed(2)}</td><td colspan="3"></td></tr>
-                    <tr><td colspan="3"></td><td>Grand Total</td><td>RM${grandTotal.toFixed(2)}</td><td colspan="3"></td></tr>
-                    <tr><td colspan="8"></td></tr>
-                    <tr><td>Please settle your payment on or before:</td><td>${formatDate(data.get('dueDate'))}</td><td></td><td>${data.get('bankDetails').replace(/\n/g, '<br>')}</td><td colspan="4"></td></tr>
-                    <tr><td colspan="8">${data.get('note')}</td></tr>
-                </table>
-            `;
-            preview.innerHTML = html;
+            calculateTotals();
             preview.style.display = 'block';
             window.scrollTo(0, preview.offsetTop);
         });
 
-        downloadBtn.addEventListener('click', () => {
-            if (preview.style.display === 'none') {
-                alert('Please generate the invoice first.');
-                return;
-            }
+        document.getElementById('downloadPDF').addEventListener('click', () => {
+            if (preview.style.display === 'none') return alert('Generate first');
             html2canvas(preview, {scale: 2}).then(canvas => {
-                const imgData = canvas.toDataURL('image/png');
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF('p', 'mm', 'a4');
-                const pdfWidth = doc.internal.pageSize.getWidth();
-                const pdfHeight = doc.internal.pageSize.getHeight();
-                const imgProps = doc.getImageProperties(imgData);
-                const ratio = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
-                const width = imgProps.width * ratio;
-                const height = imgProps.height * ratio;
-                doc.addImage(imgData, 'PNG', (pdfWidth - width) / 2, (pdfHeight - height) / 2, width, height);
-                doc.save(`invoice_${document.querySelector('[name="invoiceNo"]').value}.pdf`);
+                doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+                doc.save(`invoice_${form.invoiceNo.value}.pdf`);
             });
         });
+
+        document.getElementById('clearForm').addEventListener('click', () => form.reset());
     </script>
 </body>
 </html>
