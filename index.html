@@ -22,7 +22,7 @@
         #invoicePreview { width: 210mm; min-height: 297mm; margin: 30px auto; padding: 20mm 15mm 40mm 15mm; background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: none; font-size: 11pt; line-height: 1.45; box-sizing: border-box; }
         .header { background: #8b7d6b; color: white; padding: 12mm 15mm; display: flex; justify-content: space-between; align-items: center; font-size: 14pt; font-weight: bold; margin: -20mm -15mm 20mm -15mm; }
         .logo-footnote { text-align: center; margin: 30mm 0 0 0; width: 100%; }
-        .logo-img { width: 100%; max-width: 180mm; height: auto; display: block; margin: 0 auto; }
+        .logo-img { width: 100%; height: auto; display: block; margin: 0 auto; }
         .info-row { display: flex; justify-content: space-between; margin: 15mm 0; font-size: 12pt; font-weight: bold; }
         .billed-to { margin: 20mm 0; line-height: 1.6; font-size: 11pt; }
         table.items-table { width: 100%; border-collapse: collapse; margin: 15mm 0; font-size: 10pt; }
@@ -34,6 +34,7 @@
         .totals .grand { background: #8b7d6b; color: white; font-weight: bold; font-size: 12pt; }
         .payment { display: flex; justify-content: space-between; margin: 25mm 0 15mm 0; font-size: 10pt; }
         .note { text-align: center; font-size: 9pt; color: #444; margin-top: 10mm; }
+        @media (max-width: 600px) { #itemsContainer .item-row { grid-template-columns: 1fr; gap: 10px; } .item-row input { font-size: 16px; } }
         @media print { #formSection { display: none; } #invoicePreview { margin: 0; padding: 20mm 15mm 40mm 15mm; box-shadow: none; border: none; width: 210mm; height: 297mm; } }
     </style>
 </head>
@@ -210,15 +211,12 @@
         document.getElementById('downloadPDF').onclick = () => {
             const el = document.getElementById('invoicePreview');
             if (el.style.display === 'none') return alert('Generate invoice first');
-            html2canvas(el, {scale: 2, useCORS: true}).then(canvas => {
+            html2canvas(el, {scale: 1, useCORS: true}).then(canvas => {
+                const imgData = canvas.toDataURL('image/jpeg', 0.8);
                 const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a4'
-                });
-                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
-                pdf.save(`invoice_${form.invoiceNo.value.trim() || 'draft'}.pdf`);
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+                pdf.save(`invoice_${form.invoiceNo.value.trim() || 'draft'}.pdf');
             });
         };
 
