@@ -47,19 +47,19 @@
     <section id="formSection">
         <form id="invoiceForm">
             <label>Invoice No.</label>
-            <select id="invoiceNoSelect" name="invoiceNo"></select>
-            <input type="text" id="invoiceNoInput" placeholder="New Invoice No." style="margin-top: 5px;">
+            <select id="invoiceNoSelect"></select>
+            <input type="text" id="invoiceNoInput" name="invoiceNo" placeholder="New Invoice No." style="margin-top: 5px;">
 
             <label>Date</label>
             <input type="date" name="date" required>
 
             <label>Billed To (Name)</label>
-            <select id="billedToNameSelect" name="billedToName"></select>
-            <input type="text" id="billedToNameInput" placeholder="New Name" style="margin-top: 5px;">
+            <select id="billedToNameSelect"></select>
+            <input type="text" id="billedToNameInput" name="billedToName" placeholder="New Name" style="margin-top: 5px;">
 
             <label>Billed To Address</label>
-            <select id="billedToAddressSelect" name="billedToAddress"></select>
-            <textarea id="billedToAddressInput" rows="5" placeholder="New Address" style="margin-top: 5px;"></textarea>
+            <select id="billedToAddressSelect"></select>
+            <textarea id="billedToAddressInput" name="billedToAddress" rows="5" placeholder="New Address" style="margin-top: 5px;"></textarea>
 
             <div id="items">
                 <h3>Items</h3>
@@ -141,25 +141,23 @@
         // LocalStorage keys
         const storageKeys = {
             invoiceNos: 'invoiceNos',
-            billedNames: 'billedNames',
-            billedAddresses: 'billedAddresses',
+            billed: 'billed',
             items: 'items'
         };
 
         // Load from localStorage
         let invoiceNos = JSON.parse(localStorage.getItem(storageKeys.invoiceNos)) || [];
-        let billedNames = JSON.parse(localStorage.getItem(storageKeys.billedNames)) || [];
-        let billedAddresses = JSON.parse(localStorage.getItem(storageKeys.billedAddresses)) || [];
+        let billedList = JSON.parse(localStorage.getItem(storageKeys.billed)) || [];
         let itemsList = JSON.parse(localStorage.getItem(storageKeys.items)) || [];
 
         function updateDropdown(id, options) {
             const select = document.getElementById(id);
-            select.innerHTML = '<option value="">Select or add new</option>' + options.map(opt => `<option value="\( {opt}"> \){opt}</option>`).join('');
+            select.innerHTML = '<option value="">Select or add new</option>' + options.join('');
         }
 
-        updateDropdown('invoiceNoSelect', invoiceNos);
-        updateDropdown('billedToNameSelect', billedNames);
-        updateDropdown('billedToAddressSelect', billedAddresses);
+        updateDropdown('invoiceNoSelect', invoiceNos.map(opt => `<option value="\( {opt}"> \){opt}</option>`));
+        updateDropdown('billedToNameSelect', billedList.map(item => `<option value="\( {item.name}" data-address=" \){item.address}">${item.name}</option>`));
+        updateDropdown('billedToAddressSelect', billedList.map(item => `<option value="\( {item.address}"> \){item.address}</option>`));
 
         // Sync selects to inputs
         document.getElementById('invoiceNoSelect').addEventListener('change', (e) => {
@@ -167,8 +165,8 @@
         });
         document.getElementById('billedToNameSelect').addEventListener('change', (e) => {
             document.getElementById('billedToNameInput').value = e.target.value;
-            const index = billedNames.indexOf(e.target.value);
-            document.getElementById('billedToAddressInput').value = index !== -1 ? billedAddresses[index] : '';
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            document.getElementById('billedToAddressInput').value = selectedOption.getAttribute('data-address') || '';
         });
         document.getElementById('billedToAddressSelect').addEventListener('change', (e) => {
             document.getElementById('billedToAddressInput').value = e.target.value;
@@ -180,25 +178,29 @@
             if (val && !invoiceNos.includes(val)) {
                 invoiceNos.push(val);
                 localStorage.setItem(storageKeys.invoiceNos, JSON.stringify(invoiceNos));
-                updateDropdown('invoiceNoSelect', invoiceNos);
+                updateDropdown('invoiceNoSelect', invoiceNos.map(opt => `<option value="\( {opt}"> \){opt}</option>`));
             }
         });
 
         document.getElementById('billedToNameInput').addEventListener('change', (e) => {
-            const val = e.target.value.trim();
-            if (val && !billedNames.includes(val)) {
-                billedNames.push(val);
-                localStorage.setItem(storageKeys.billedNames, JSON.stringify(billedNames));
-                updateDropdown('billedToNameSelect', billedNames);
+            const name = e.target.value.trim();
+            const address = document.getElementById('billedToAddressInput').value.trim();
+            if (name && !billedList.some(item => item.name === name)) {
+                billedList.push({ name, address });
+                localStorage.setItem(storageKeys.billed, JSON.stringify(billedList));
+                updateDropdown('billedToNameSelect', billedList.map(item => `<option value="\( {item.name}" data-address=" \){item.address}">${item.name}</option>`));
+                updateDropdown('billedToAddressSelect', billedList.map(item => `<option value="\( {item.address}"> \){item.address}</option>`));
             }
         });
 
         document.getElementById('billedToAddressInput').addEventListener('change', (e) => {
-            const val = e.target.value.trim();
-            if (val && !billedAddresses.includes(val)) {
-                billedAddresses.push(val);
-                localStorage.setItem(storageKeys.billedAddresses, JSON.stringify(billedAddresses));
-                updateDropdown('billedToAddressSelect', billedAddresses);
+            const address = e.target.value.trim();
+            const name = document.getElementById('billedToNameInput').value.trim();
+            if (address && name && !billedList.some(item => item.address === address && item.name === name)) {
+                billedList.push({ name, address });
+                localStorage.setItem(storageKeys.billed, JSON.stringify(billedList));
+                updateDropdown('billedToNameSelect', billedList.map(item => `<option value="\( {item.name}" data-address=" \){item.address}">${item.name}</option>`));
+                updateDropdown('billedToAddressSelect', billedList.map(item => `<option value="\( {item.address}"> \){item.address}</option>`));
             }
         });
 
@@ -248,7 +250,7 @@
                     });
                 }
             });
-            row.querySelector('button').onclick = () => { row.remove(); updateTotals(); };
+            row.querySelector('button').addEventListener('click', () => { row.remove(); updateTotals(); });
             calc();
         }
 
@@ -274,10 +276,10 @@
             const due = new Date(invDate);
             due.setDate(due.getDate() + 30);
 
-            document.getElementById('prevInvoiceNo').textContent = d.get('invoiceNo');
+            document.getElementById('prevInvoiceNo').textContent = document.getElementById('invoiceNoInput').value;
             document.getElementById('prevDate').textContent = invDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
-            document.getElementById('prevBilledName').textContent = d.get('billedToName');
-            document.getElementById('prevBilledAddress').innerHTML = d.get('billedToAddress').replace(/\n/g, '<br>');
+            document.getElementById('prevBilledName').textContent = document.getElementById('billedToNameInput').value;
+            document.getElementById('prevBilledAddress').innerHTML = document.getElementById('billedToAddressInput').value.replace(/\n/g, '<br>');
             document.getElementById('prevDueDate').textContent = due.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
 
             const tbody = document.getElementById('prevItemsBody');
@@ -307,7 +309,7 @@
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 pdf.addImage(canvas.toDataURL('image/jpeg', 0.6), 'JPEG', 0, 0, 210, 297);
-                pdf.save(`invoice_${form.invoiceNo.value.trim() || 'draft'}.pdf');
+                pdf.save(`invoice_${document.getElementById('invoiceNoInput').value.trim() || 'draft'}.pdf');
             });
         });
 
