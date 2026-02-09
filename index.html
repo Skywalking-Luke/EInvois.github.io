@@ -24,4 +24,298 @@
         .info-row { display: flex; justify-content: flex-start; gap: 20mm; margin: 10mm 0; font-size: 11pt; }
         .billed-to { margin: 10mm 0; line-height: 1.5; font-size: 10pt; }
         table.items-table { width: 100%; border-collapse: collapse; margin: 10mm 0; font-size: 10pt; }
-        .items
+        .items-table th { background: #8b7d6b; color: white; padding: 4mm 6mm; text-align: left; font-size: 10pt; font-weight: normal; }
+        .items-table td { padding: 4mm 6mm; border-bottom: none; background: #fff; }
+        .totals { text-align: right; margin: 10mm 0; font-size: 10pt; }
+        .totals .sub { padding: 2mm 0; }
+        .totals .disc { padding: 2mm 0; }
+        .totals .grand { background: #8b7d6b; color: white; padding: 4mm 6mm; width: 60mm; margin-left: auto; font-weight: normal; }
+        .payment { display: flex; justify-content: space-between; margin: 15mm 0 10mm 0; font-size: 10pt; }
+        .payment .left { max-width: 100mm; }
+        .payment .right { text-align: right; }
+        .note { text-align: center; font-size: 9pt; color: #444; margin: 10mm 0; }
+        .logo-footnote { text-align: center; margin: 20mm 0 0 0; width: 100%; }
+        .logo-img { width: 100%; height: auto; display: block; margin: 0 auto; }
+        @media (max-width: 600px) { #itemsContainer .item-row { grid-template-columns: 1fr; gap: 10px; } .item-row input { font-size: 16px; } }
+        @media print { #formSection { display: none; } #invoicePreview { margin: 0; padding: 20mm 15mm 40mm 15mm; box-shadow: none; border: none; width: 210mm; height: 297mm; } }
+    </style>
+</head>
+<body>
+
+    <h1>LH Ventures Invoice Generator</h1>
+
+    <section id="formSection">
+        <form id="invoiceForm">
+            <label>Invoice No.</label>
+            <select name="invoiceNo" id="invoiceNoSelect"></select>
+            <input type="text" id="invoiceNoInput" placeholder="New Invoice No." style="margin-top: 5px;">
+
+            <label>Date</label>
+            <input type="date" name="date" required>
+
+            <label>Billed To (Name)</label>
+            <select name="billedToName" id="billedToNameSelect"></select>
+            <input type="text" id="billedToNameInput" placeholder="New Name" style="margin-top: 5px;">
+
+            <label>Billed To Address</label>
+            <select name="billedToAddress" id="billedToAddressSelect"></select>
+            <textarea id="billedToAddressInput" rows="5" placeholder="New Address" style="margin-top: 5px;"></textarea>
+
+            <div id="items">
+                <h3>Items</h3>
+                <div id="itemsContainer"></div>
+                <button type="button" id="addItem" class="primary">+ Add Item</button>
+            </div>
+
+            <label>Discount (RM)</label>
+            <input type="number" name="discount" step="0.01" min="0" value="0.00">
+
+            <div style="margin: 30px 0;">
+                <button type="submit" class="primary">Generate Invoice</button>
+                <button type="button" id="downloadPDF" class="primary">Download PDF</button>
+                <button type="button" id="clearForm" class="secondary">Clear Form</button>
+            </div>
+        </form>
+    </section>
+
+    <section id="invoicePreview">
+        <div class="header">
+            <div>Sales Invoice</div>
+            <div>LH Ventures<br>B-02-03, Blok B, Residensi Lili,<br>71800, Nilai, Negeri Sembilan</div>
+        </div>
+
+        <div class="info-row">
+            <div>Invoice No. <span id="prevInvoiceNo"></span></div>
+            <div>Date <span id="prevDate"></span></div>
+        </div>
+
+        <div class="billed-to">
+            <strong>Billed to</strong><br>
+            <span id="prevBilledName"></span><br>
+            <span id="prevBilledAddress"></span>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total Amount</th>
+                </tr>
+            </thead>
+            <tbody id="prevItemsBody"></tbody>
+        </table>
+
+        <div class="totals">
+            <div class="sub">Subtotal <span id="prevSubtotal">RM0.00</span></div>
+            <div class="disc">Discount <span id="prevDiscount">RM0.00</span></div>
+            <div class="grand">Grand Total <span id="prevGrandTotal">RM0.00</span></div>
+        </div>
+
+        <div class="payment">
+            <div class="left">
+                Please settle your payment within 30 days from invoice date.<br>
+                Payment due on or before: <strong><span id="prevDueDate"></span></strong>
+            </div>
+            <div class="right">
+                Bank Name: Maybank<br>
+                Account Name: LH Ventures<br>
+                Account Number: 555087234884
+            </div>
+        </div>
+
+        <div class="note">
+            Thank you for your business.
+        </div>
+
+        <div class="logo-footnote">
+            <img src="https://raw.githubusercontent.com/Skywalking-Luke/EInvois.github.io/main/%2B60128744878_20260209_144856_0000.png" alt="Company Logo" class="logo-img">
+        </div>
+    </section>
+
+    <script>
+        const form = document.getElementById('invoiceForm');
+        const itemsContainer = document.getElementById('itemsContainer');
+
+        // LocalStorage keys
+        const storageKeys = {
+            invoiceNos: 'invoiceNos',
+            billedNames: 'billedNames',
+            billedAddresses: 'billedAddresses',
+            items: 'items'
+        };
+
+        // Load from localStorage
+        let invoiceNos = JSON.parse(localStorage.getItem(storageKeys.invoiceNos)) || [];
+        let billedNames = JSON.parse(localStorage.getItem(storageKeys.billedNames)) || [];
+        let billedAddresses = JSON.parse(localStorage.getItem(storageKeys.billedAddresses)) || [];
+        let itemsList = JSON.parse(localStorage.getItem(storageKeys.items)) || [];
+
+        function updateDropdown(id, options) {
+            const select = document.getElementById(id);
+            select.innerHTML = '<option value="">Select or add new</option>' + options.map(opt => `<option value="\( {opt}"> \){opt}</option>`).join('');
+        }
+
+        updateDropdown('invoiceNoSelect', invoiceNos);
+        updateDropdown('billedToNameSelect', billedNames);
+        updateDropdown('billedToAddressSelect', billedAddresses);
+
+        // Sync selects to inputs
+        document.getElementById('invoiceNoSelect').addEventListener('change', (e) => {
+            document.getElementById('invoiceNoInput').value = e.target.value;
+        });
+        document.getElementById('billedToNameSelect').addEventListener('change', (e) => {
+            document.getElementById('billedToNameInput').value = e.target.value;
+            const index = billedNames.indexOf(e.target.value);
+            form.billedToAddress.value = index !== -1 ? billedAddresses[index] : '';
+        });
+        document.getElementById('billedToAddressSelect').addEventListener('change', (e) => {
+            document.getElementById('billedToAddressInput').value = e.target.value;
+        });
+
+        // Add new options from inputs
+        document.getElementById('invoiceNoInput').addEventListener('change', (e) => {
+            const val = e.target.value.trim();
+            if (val && !invoiceNos.includes(val)) {
+                invoiceNos.push(val);
+                localStorage.setItem(storageKeys.invoiceNos, JSON.stringify(invoiceNos));
+                updateDropdown('invoiceNoSelect', invoiceNos);
+            }
+            form.invoiceNo.value = val;
+        });
+
+        document.getElementById('billedToNameInput').addEventListener('change', (e) => {
+            const val = e.target.value.trim();
+            if (val && !billedNames.includes(val)) {
+                billedNames.push(val);
+                localStorage.setItem(storageKeys.billedNames, JSON.stringify(billedNames));
+                updateDropdown('billedToNameSelect', billedNames);
+            }
+            form.billedToName.value = val;
+        });
+
+        document.getElementById('billedToAddressInput').addEventListener('change', (e) => {
+            const val = e.target.value.trim();
+            if (val && !billedAddresses.includes(val)) {
+                billedAddresses.push(val);
+                localStorage.setItem(storageKeys.billedAddresses, JSON.stringify(billedAddresses));
+                updateDropdown('billedToAddressSelect', billedAddresses);
+            }
+            form.billedToAddress.value = val;
+        });
+
+        function addItemRow(desc = '', qty = '', unit = '') {
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.innerHTML = `
+                <select class="item-desc-select"><option value="">Select item</option>\( {itemsList.map(item => `<option value=" \){item.desc}" data-qty="\( {item.qty}" data-unit=" \){item.unit}">${item.desc}</option>`).join('')}</select>
+                <input type="text" class="item-desc" value="${desc}" placeholder="Item description" required style="margin-top: 5px;">
+                <input type="number" class="item-qty" min="1" value="${qty}" placeholder="Qty">
+                <input type="number" class="item-unit" step="0.01" value="${unit}" placeholder="Unit Price (RM)">
+                <input type="text" class="item-total" readonly placeholder="Total">
+                <button type="button" class="secondary">Remove</button>
+            `;
+            itemsContainer.appendChild(row);
+
+            const descSelect = row.querySelector('.item-desc-select');
+            const descInput = row.querySelector('.item-desc');
+            const qtyEl = row.querySelector('.item-qty');
+            const unitEl = row.querySelector('.item-unit');
+            const totalEl = row.querySelector('.item-total');
+
+            descSelect.addEventListener('change', (e) => {
+                const selectedOption = e.target.options[e.target.selectedIndex];
+                descInput.value = selectedOption.value;
+                qtyEl.value = selectedOption.getAttribute('data-qty') || '';
+                unitEl.value = selectedOption.getAttribute('data-unit') || '';
+                calc();
+            });
+
+            const calc = () => {
+                const q = parseFloat(qtyEl.value) || 0;
+                const u = parseFloat(unitEl.value) || 0;
+                totalEl.value = 'RM' + (q * u).toFixed(2);
+            };
+
+            qtyEl.addEventListener('input', calc);
+            unitEl.addEventListener('input', calc);
+            descInput.addEventListener('change', (e) => {
+                const val = e.target.value.trim();
+                if (val && !itemsList.some(item => item.desc === val)) {
+                    itemsList.push({ desc: val, qty: qtyEl.value, unit: unitEl.value });
+                    localStorage.setItem(storageKeys.items, JSON.stringify(itemsList));
+                    // Update all select dropdowns
+                    document.querySelectorAll('.item-desc-select').forEach(select => {
+                        select.innerHTML = '<option value="">Select item</option>' + itemsList.map(item => `<option value="\( {item.desc}" data-qty=" \){item.qty}" data-unit="\( {item.unit}"> \){item.desc}</option>`).join('');
+                    });
+                }
+            });
+            row.querySelector('button').onclick = () => { row.remove(); updateTotals(); };
+            calc();
+        }
+
+        function updateTotals() {
+            let sub = 0;
+            document.querySelectorAll('.item-total').forEach(el => sub += parseFloat(el.value.replace('RM','')) || 0);
+            const disc = parseFloat(form.discount.value) || 0;
+            document.getElementById('prevSubtotal').textContent = 'RM' + sub.toFixed(2);
+            document.getElementById('prevDiscount').textContent = 'RM' + disc.toFixed(2);
+            document.getElementById('prevGrandTotal').textContent = 'RM' + (sub - disc).toFixed(2);
+        }
+
+        document.getElementById('addItem').onclick = () => addItemRow();
+
+        addItemRow('CRISPY CHIPS IKAN', 30, 18.00);
+        addItemRow('SO CHEWS (MIXED FLAVOR)', 200, 3.50);
+
+        form.onsubmit = e => {
+            e.preventDefault();
+            const d = new FormData(form);
+            const invDate = new Date(d.get('date'));
+            const due = new Date(invDate);
+            due.setDate(due.getDate() + 30);
+
+            document.getElementById('prevInvoiceNo').textContent = d.get('invoiceNo');
+            document.getElementById('prevDate').textContent = invDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+            document.getElementById('prevBilledName').textContent = d.get('billedToName');
+            document.getElementById('prevBilledAddress').innerHTML = d.get('billedToAddress').replace(/\n/g, '<br>');
+            document.getElementById('prevDueDate').textContent = due.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+
+            const tbody = document.getElementById('prevItemsBody');
+            tbody.innerHTML = '';
+            document.querySelectorAll('#itemsContainer .item-row').forEach(r => {
+                const desc = r.querySelector('.item-desc').value.trim();
+                if (!desc) return;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${desc}</td>
+                    <td>${r.querySelector('.item-qty').value || ''}</td>
+                    <td>RM${parseFloat(r.querySelector('.item-unit').value||0).toFixed(2)}</td>
+                    <td>${r.querySelector('.item-total').value}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateTotals();
+            document.getElementById('invoicePreview').style.display = 'block';
+            window.scrollTo({top: document.getElementById('invoicePreview').offsetTop - 40, behavior:'smooth'});
+        };
+
+        document.getElementById('downloadPDF').onclick = () => {
+            const el = document.getElementById('invoicePreview');
+            if (el.style.display === 'none') return alert('Generate invoice first');
+            html2canvas(el, {scale: 2, useCORS: true}).then(canvas => {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+                pdf.save(`invoice_${form.invoiceNo.value.trim() || 'draft'}.pdf');
+            });
+        };
+
+        document.getElementById('clearForm').onclick = () => {
+            if (confirm('Clear form?')) location.reload();
+        };
+    </script>
+</body>
+</html>
