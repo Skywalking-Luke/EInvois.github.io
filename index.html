@@ -168,7 +168,7 @@
         document.getElementById('billedToNameSelect').addEventListener('change', (e) => {
             document.getElementById('billedToNameInput').value = e.target.value;
             const index = billedNames.indexOf(e.target.value);
-            form.billedToAddress.value = index !== -1 ? billedAddresses[index] : '';
+            document.getElementById('billedToAddressInput').value = index !== -1 ? billedAddresses[index] : '';
         });
         document.getElementById('billedToAddressSelect').addEventListener('change', (e) => {
             document.getElementById('billedToAddressInput').value = e.target.value;
@@ -182,7 +182,6 @@
                 localStorage.setItem(storageKeys.invoiceNos, JSON.stringify(invoiceNos));
                 updateDropdown('invoiceNoSelect', invoiceNos);
             }
-            form.invoiceNo.value = val;
         });
 
         document.getElementById('billedToNameInput').addEventListener('change', (e) => {
@@ -192,7 +191,6 @@
                 localStorage.setItem(storageKeys.billedNames, JSON.stringify(billedNames));
                 updateDropdown('billedToNameSelect', billedNames);
             }
-            form.billedToName.value = val;
         });
 
         document.getElementById('billedToAddressInput').addEventListener('change', (e) => {
@@ -202,7 +200,6 @@
                 localStorage.setItem(storageKeys.billedAddresses, JSON.stringify(billedAddresses));
                 updateDropdown('billedToAddressSelect', billedAddresses);
             }
-            form.billedToAddress.value = val;
         });
 
         function addItemRow(desc = '', qty = '', unit = '') {
@@ -245,7 +242,7 @@
                 if (val && !itemsList.some(item => item.desc === val)) {
                     itemsList.push({ desc: val, qty: qtyEl.value, unit: unitEl.value });
                     localStorage.setItem(storageKeys.items, JSON.stringify(itemsList));
-                    // Update all select dropdowns
+                    // Update all dropdowns
                     document.querySelectorAll('.item-desc-select').forEach(select => {
                         select.innerHTML = '<option value="">Select item</option>' + itemsList.map(item => `<option value="\( {item.desc}" data-qty=" \){item.qty}" data-unit="\( {item.unit}"> \){item.desc}</option>`).join('');
                     });
@@ -266,8 +263,8 @@
 
         document.getElementById('addItem').onclick = () => addItemRow();
 
-        addItemRow('CRISPY CHIPS IKAN', 30, 18.00);
-        addItemRow('SO CHEWS (MIXED FLAVOR)', 200, 3.50);
+        addItemRow();
+        addItemRow();
 
         form.onsubmit = e => {
             e.preventDefault();
@@ -305,10 +302,10 @@
         document.getElementById('downloadPDF').onclick = () => {
             const el = document.getElementById('invoicePreview');
             if (el.style.display === 'none') return alert('Generate invoice first');
-            html2canvas(el, {scale: 2, useCORS: true}).then(canvas => {
+            html2canvas(el, {scale: 1, useCORS: true}).then(canvas => {
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
-                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, 210, 297);
                 pdf.save(`invoice_${form.invoiceNo.value.trim() || 'draft'}.pdf');
             });
         };
