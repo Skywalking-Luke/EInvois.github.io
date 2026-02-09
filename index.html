@@ -19,23 +19,22 @@
         button.secondary { background: #666; color: white; }
         #itemsContainer .item-row { display: grid; grid-template-columns: 5fr 1fr 1.5fr 1.5fr auto; gap: 14px; margin: 14px 0; align-items: center; }
         #itemsContainer .item-row input { padding: 12px 14px; font-size: 15px; min-height: 44px; }
-        #invoicePreview { max-width: 900px; margin: 30px auto; padding: 40px 30px; background: white; border: 1px solid #ccc; box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: none; font-size: 13px; line-height: 1.4; }
-        .header { background: #8b7d6b; color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold; }
-        .logo-footnote { text-align: center; margin: 40px 0 20px; font-size: 11px; color: #555; }
-        .logo-img { max-width: 160px; height: auto; }
-        .info-row { display: flex; justify-content: space-between; margin: 20px 0; font-size: 15px; font-weight: bold; }
-        .billed-to { margin: 30px 0; line-height: 1.6; }
-        table.items-table { width: 100%; border-collapse: collapse; margin: 25px 0; }
-        .items-table th { background: #8b7d6b; color: white; padding: 10px 12px; text-align: left; font-size: 14px; }
-        .items-table td { padding: 10px 12px; border-bottom: 1px solid #eee; }
-        .totals { text-align: right; margin: 30px 0; }
-        .totals div { margin: 10px 0; padding: 8px 12px; width: 280px; margin-left: auto; font-size: 14px; }
-        .totals .sub { border-top: 1px solid #ccc; }
-        .totals .grand { background: #8b7d6b; color: white; font-weight: bold; font-size: 16px; }
-        .payment { display: flex; justify-content: space-between; margin: 40px 0 30px; font-size: 13px; }
-        .note { text-align: center; font-size: 12px; color: #444; margin-top: 20px; }
-        @media (max-width: 600px) { #itemsContainer .item-row { grid-template-columns: 1fr; gap: 10px; } .item-row input { font-size: 16px; } }
-        @media print { #formSection { display: none; } #invoicePreview { border: none; box-shadow: none; padding: 0; margin: 0; width: 100%; } }
+        #invoicePreview { width: 210mm; min-height: 297mm; margin: 30px auto; padding: 20mm 15mm 40mm 15mm; background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: none; font-size: 11pt; line-height: 1.45; box-sizing: border-box; }
+        .header { background: #8b7d6b; color: white; padding: 12mm 15mm; display: flex; justify-content: space-between; align-items: center; font-size: 14pt; font-weight: bold; margin: -20mm -15mm 20mm -15mm; }
+        .logo-footnote { text-align: center; margin: 30mm 0 0 0; width: 100%; }
+        .logo-img { width: 100%; max-width: 180mm; height: auto; display: block; margin: 0 auto; }
+        .info-row { display: flex; justify-content: space-between; margin: 15mm 0; font-size: 12pt; font-weight: bold; }
+        .billed-to { margin: 20mm 0; line-height: 1.6; font-size: 11pt; }
+        table.items-table { width: 100%; border-collapse: collapse; margin: 15mm 0; font-size: 10pt; }
+        .items-table th { background: #8b7d6b; color: white; padding: 6mm 8mm; text-align: left; font-size: 10pt; }
+        .items-table td { padding: 6mm 8mm; border-bottom: 1px solid #ddd; }
+        .totals { text-align: right; margin: 15mm 0; font-size: 11pt; }
+        .totals div { margin: 4mm 0; padding: 4mm 8mm; width: 80mm; margin-left: auto; }
+        .totals .sub { border-top: 1px solid #999; }
+        .totals .grand { background: #8b7d6b; color: white; font-weight: bold; font-size: 12pt; }
+        .payment { display: flex; justify-content: space-between; margin: 25mm 0 15mm 0; font-size: 10pt; }
+        .note { text-align: center; font-size: 9pt; color: #444; margin-top: 10mm; }
+        @media print { #formSection { display: none; } #invoicePreview { margin: 0; padding: 20mm 15mm 40mm 15mm; box-shadow: none; border: none; width: 210mm; height: 297mm; } }
     </style>
 </head>
 <body>
@@ -120,12 +119,12 @@
             </div>
         </div>
 
-        <div class="logo-footnote">
-            <img src="https://raw.githubusercontent.com/Skywalking-Luke/EInvois.github.io/main/%2B60128744878_20260209_144856_0000.png" alt="Company Logo" class="logo-img">
-        </div>
-
         <div class="note">
             Thank you for your business.
+        </div>
+
+        <div class="logo-footnote">
+            <img src="https://raw.githubusercontent.com/Skywalking-Luke/EInvois.github.io/main/%2B60128744878_20260209_144856_0000.png" alt="Company Logo" class="logo-img">
         </div>
     </section>
 
@@ -213,7 +212,11 @@
             if (el.style.display === 'none') return alert('Generate invoice first');
             html2canvas(el, {scale: 2, useCORS: true}).then(canvas => {
                 const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
                 pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
                 pdf.save(`invoice_${form.invoiceNo.value.trim() || 'draft'}.pdf`);
             });
