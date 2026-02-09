@@ -47,18 +47,18 @@
     <section id="formSection">
         <form id="invoiceForm">
             <label>Invoice No.</label>
-            <select name="invoiceNo" id="invoiceNoSelect"></select>
+            <select id="invoiceNoSelect"></select>
             <input type="text" id="invoiceNoInput" placeholder="New Invoice No." style="margin-top: 5px;">
 
             <label>Date</label>
             <input type="date" name="date" required>
 
             <label>Billed To (Name)</label>
-            <select name="billedToName" id="billedToNameSelect"></select>
+            <select id="billedToNameSelect"></select>
             <input type="text" id="billedToNameInput" placeholder="New Name" style="margin-top: 5px;">
 
             <label>Billed To Address</label>
-            <select name="billedToAddress" id="billedToAddressSelect"></select>
+            <select id="billedToAddressSelect"></select>
             <textarea id="billedToAddressInput" rows="5" placeholder="New Address" style="margin-top: 5px;"></textarea>
 
             <div id="items">
@@ -261,12 +261,13 @@
             document.getElementById('prevGrandTotal').textContent = 'RM' + (sub - disc).toFixed(2);
         }
 
-        document.getElementById('addItem').onclick = () => addItemRow();
+        document.getElementById('addItem').addEventListener('click', () => addItemRow());
 
+        // Add initial rows
         addItemRow();
         addItemRow();
 
-        form.onsubmit = e => {
+        form.addEventListener('submit', e => {
             e.preventDefault();
             const d = new FormData(form);
             const invDate = new Date(d.get('date'));
@@ -297,22 +298,22 @@
             updateTotals();
             document.getElementById('invoicePreview').style.display = 'block';
             window.scrollTo({top: document.getElementById('invoicePreview').offsetTop - 40, behavior:'smooth'});
-        };
+        });
 
-        document.getElementById('downloadPDF').onclick = () => {
+        document.getElementById('downloadPDF').addEventListener('click', () => {
             const el = document.getElementById('invoicePreview');
             if (el.style.display === 'none') return alert('Generate invoice first');
             html2canvas(el, {scale: 1, useCORS: true}).then(canvas => {
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
-                pdf.addImage(canvas.toDataURL('image/jpeg', 0.8), 'JPEG', 0, 0, 210, 297);
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.6), 'JPEG', 0, 0, 210, 297);
                 pdf.save(`invoice_${form.invoiceNo.value.trim() || 'draft'}.pdf');
             });
-        };
+        });
 
-        document.getElementById('clearForm').onclick = () => {
+        document.getElementById('clearForm').addEventListener('click', () => {
             if (confirm('Clear form?')) location.reload();
-        };
+        });
     </script>
 </body>
 </html>
