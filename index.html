@@ -34,8 +34,8 @@
         .payment .left { max-width: 100mm; }
         .payment .right { text-align: right; }
         .note { text-align: center; font-size: 9pt; color: #444; margin: 10mm 0; }
-        .logo-footnote { text-align: center; margin: 20mm 0 0 0; width: 100%; }
-        .logo-img { width: 100%; height: auto; display: block; margin: 0 auto; }
+        .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 20mm; font-size: 8pt; }
+        .footer img { max-height: 15mm; width: auto; }
         @media (max-width: 600px) { #itemsContainer .item-row { grid-template-columns: 1fr; gap: 10px; } .item-row input { font-size: 16px; } }
         @media print { #formSection { display: none; } #invoicePreview { margin: 0; padding: 20mm 15mm 40mm 15mm; box-shadow: none; border: none; width: 210mm; height: 297mm; } }
     </style>
@@ -47,19 +47,16 @@
     <section id="formSection">
         <form id="invoiceForm">
             <label>Invoice No.</label>
-            <select id="invoiceNoSelect"></select>
-            <input type="text" id="invoiceNoInput" placeholder="New Invoice No." style="margin-top: 5px;">
+            <input type="text" name="invoiceNo" required placeholder="e.g. 20251220512">
 
             <label>Date</label>
-            <input type="date" id="dateInput" required>
+            <input type="date" name="date" required>
 
             <label>Billed To (Name)</label>
-            <select id="billedToNameSelect"></select>
-            <input type="text" id="billedToNameInput" placeholder="New Name" style="margin-top: 5px;">
+            <input type="text" name="billedToName" required placeholder="e.g. PS BANDAR BARU NILAI">
 
             <label>Billed To Address</label>
-            <select id="billedToAddressSelect"></select>
-            <textarea id="billedToAddressInput" rows="5" placeholder="New Address" style="margin-top: 5px;"></textarea>
+            <textarea name="billedToAddress" rows="5" required placeholder="Full address..."></textarea>
 
             <div id="items">
                 <h3>Items</h3>
@@ -68,10 +65,10 @@
             </div>
 
             <label>Discount (RM)</label>
-            <input type="number" id="discountInput" step="0.01" min="0" value="0.00">
+            <input type="number" name="discount" step="0.01" min="0" value="0.00">
 
             <div style="margin: 30px 0;">
-                <button type="button" id="generateInvoice" class="primary">Generate Invoice</button>
+                <button type="submit" class="primary">Generate Invoice</button>
                 <button type="button" id="downloadPDF" class="primary">Download PDF</button>
                 <button type="button" id="clearForm" class="secondary">Clear Form</button>
             </div>
@@ -129,88 +126,22 @@
             Thank you for your business.
         </div>
 
-        <div class="logo-footnote">
-            <img src="https://raw.githubusercontent.com/Skywalking-Luke/EInvois.github.io/main/%2B60128744878_20260209_144856_0000.png" alt="Company Logo" class="logo-img">
+        <div class="footer">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?data=%2B60128744878&size=80x80" alt="QR Code" class="qr-img">
+            <img src="https://raw.githubusercontent.com/Skywalking-Luke/EInvois.github.io/main/%2B60128744878_20260209_144856_0000.png" alt="LH Logo" class="lh-logo">
+            <img src="https://seeklogo.com/images/M/maybank-logo-8A5A2A90B9-seeklogo.com.png" alt="Maybank Logo" class="maybank-logo">
         </div>
     </section>
 
     <script>
-        const generateButton = document.getElementById('generateInvoice');
-        const downloadButton = document.getElementById('downloadPDF');
-        const clearButton = document.getElementById('clearForm');
+        const form = document.getElementById('invoiceForm');
         const itemsContainer = document.getElementById('itemsContainer');
-        const invoicePreview = document.getElementById('invoicePreview');
-
-        // LocalStorage keys
-        const storageKeys = {
-            invoiceNos: 'invoiceNos',
-            billedNames: 'billedNames',
-            billedAddresses: 'billedAddresses',
-            items: 'items'
-        };
-
-        // Load from localStorage
-        let invoiceNos = JSON.parse(localStorage.getItem(storageKeys.invoiceNos)) || [];
-        let billedNames = JSON.parse(localStorage.getItem(storageKeys.billedNames)) || [];
-        let billedAddresses = JSON.parse(localStorage.getItem(storageKeys.billedAddresses)) || [];
-        let itemsList = JSON.parse(localStorage.getItem(storageKeys.items)) || [];
-
-        function updateDropdown(id, options) {
-            const select = document.getElementById(id);
-            select.innerHTML = '<option value="">Select or add new</option>' + options.map(opt => `<option value="\( {opt}"> \){opt}</option>`).join('');
-        }
-
-        updateDropdown('invoiceNoSelect', invoiceNos);
-        updateDropdown('billedToNameSelect', billedNames);
-        updateDropdown('billedToAddressSelect', billedAddresses);
-
-        // Sync selects to inputs
-        document.getElementById('invoiceNoSelect').addEventListener('change', (e) => {
-            document.getElementById('invoiceNoInput').value = e.target.value;
-        });
-        document.getElementById('billedToNameSelect').addEventListener('change', (e) => {
-            document.getElementById('billedToNameInput').value = e.target.value;
-            const index = billedNames.indexOf(e.target.value);
-            document.getElementById('billedToAddressInput').value = index !== -1 ? billedAddresses[index] : '';
-        });
-        document.getElementById('billedToAddressSelect').addEventListener('change', (e) => {
-            document.getElementById('billedToAddressInput').value = e.target.value;
-        });
-
-        // Add new options from inputs
-        document.getElementById('invoiceNoInput').addEventListener('change', (e) => {
-            const val = e.target.value.trim();
-            if (val && !invoiceNos.includes(val)) {
-                invoiceNos.push(val);
-                localStorage.setItem(storageKeys.invoiceNos, JSON.stringify(invoiceNos));
-                updateDropdown('invoiceNoSelect', invoiceNos);
-            }
-        });
-
-        document.getElementById('billedToNameInput').addEventListener('change', (e) => {
-            const val = e.target.value.trim();
-            if (val && !billedNames.includes(val)) {
-                billedNames.push(val);
-                localStorage.setItem(storageKeys.billedNames, JSON.stringify(billedNames));
-                updateDropdown('billedToNameSelect', billedNames);
-            }
-        });
-
-        document.getElementById('billedToAddressInput').addEventListener('change', (e) => {
-            const val = e.target.value.trim();
-            if (val && !billedAddresses.includes(val)) {
-                billedAddresses.push(val);
-                localStorage.setItem(storageKeys.billedAddresses, JSON.stringify(billedAddresses));
-                updateDropdown('billedToAddressSelect', billedAddresses);
-            }
-        });
 
         function addItemRow(desc = '', qty = '', unit = '') {
             const row = document.createElement('div');
             row.className = 'item-row';
             row.innerHTML = `
-                <select class="item-desc-select"><option value="">Select item</option>\( {itemsList.map(item => `<option value=" \){item.desc}" data-qty="\( {item.qty}" data-unit=" \){item.unit}">${item.desc}</option>`).join('')}</select>
-                <input type="text" class="item-desc" value="${desc}" placeholder="Item description" required style="margin-top: 5px;">
+                <input type="text" class="item-desc" value="${desc}" placeholder="Item description" required>
                 <input type="number" class="item-qty" min="1" value="${qty}" placeholder="Qty">
                 <input type="number" class="item-unit" step="0.01" value="${unit}" placeholder="Unit Price (RM)">
                 <input type="text" class="item-total" readonly placeholder="Total">
@@ -218,19 +149,9 @@
             `;
             itemsContainer.appendChild(row);
 
-            const descSelect = row.querySelector('.item-desc-select');
-            const descInput = row.querySelector('.item-desc');
             const qtyEl = row.querySelector('.item-qty');
             const unitEl = row.querySelector('.item-unit');
             const totalEl = row.querySelector('.item-total');
-
-            descSelect.addEventListener('change', (e) => {
-                const selectedOption = e.target.options[e.target.selectedIndex];
-                descInput.value = selectedOption.value;
-                qtyEl.value = selectedOption.getAttribute('data-qty') || '';
-                unitEl.value = selectedOption.getAttribute('data-unit') || '';
-                calc();
-            });
 
             const calc = () => {
                 const q = parseFloat(qtyEl.value) || 0;
@@ -240,56 +161,35 @@
 
             qtyEl.addEventListener('input', calc);
             unitEl.addEventListener('input', calc);
-            descInput.addEventListener('change', (e) => {
-                const val = e.target.value.trim();
-                if (val && !itemsList.some(item => item.desc === val)) {
-                    itemsList.push({ desc: val, qty: qtyEl.value, unit: unitEl.value });
-                    localStorage.setItem(storageKeys.items, JSON.stringify(itemsList));
-                    // Update all dropdowns
-                    document.querySelectorAll('.item-desc-select').forEach(select => {
-                        select.innerHTML = '<option value="">Select item</option>' + itemsList.map(item => `<option value="\( {item.desc}" data-qty=" \){item.qty}" data-unit="\( {item.unit}"> \){item.desc}</option>`).join('');
-                    });
-                }
-            });
-            row.querySelector('button').addEventListener('click', () => { row.remove(); updateTotals(); });
+            row.querySelector('button').onclick = () => { row.remove(); updateTotals(); };
             calc();
         }
 
         function updateTotals() {
             let sub = 0;
             document.querySelectorAll('.item-total').forEach(el => sub += parseFloat(el.value.replace('RM','')) || 0);
-            const disc = parseFloat(document.getElementById('discountInput').value) || 0;
+            const disc = parseFloat(form.discount.value) || 0;
             document.getElementById('prevSubtotal').textContent = 'RM' + sub.toFixed(2);
             document.getElementById('prevDiscount').textContent = 'RM' + disc.toFixed(2);
             document.getElementById('prevGrandTotal').textContent = 'RM' + (sub - disc).toFixed(2);
         }
 
-        document.getElementById('addItem').addEventListener('click', () => addItemRow());
+        document.getElementById('addItem').onclick = () => addItemRow();
 
-        // Add initial rows
-        addItemRow();
-        addItemRow();
+        addItemRow('CRISPY CHIPS IKAN', 30, 18.00);
+        addItemRow('SO CHEWS (MIXED FLAVOR)', 200, 3.50);
 
-        generateButton.addEventListener('click', () => {
-            const invNo = document.getElementById('invoiceNoInput').value;
-            const date = document.getElementById('dateInput').value;
-            const billedName = document.getElementById('billedToNameInput').value;
-            const billedAddress = document.getElementById('billedToAddressInput').value;
-            const discount = document.getElementById('discountInput').value;
-
-            if (!invNo || !date || !billedName || !billedAddress) {
-                alert('Please fill all fields.');
-                return;
-            }
-
-            const invDate = new Date(date);
+        form.onsubmit = e => {
+            e.preventDefault();
+            const d = new FormData(form);
+            const invDate = new Date(d.get('date'));
             const due = new Date(invDate);
             due.setDate(due.getDate() + 30);
 
-            document.getElementById('prevInvoiceNo').textContent = invNo;
+            document.getElementById('prevInvoiceNo').textContent = d.get('invoiceNo');
             document.getElementById('prevDate').textContent = invDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
-            document.getElementById('prevBilledName').textContent = billedName;
-            document.getElementById('prevBilledAddress').innerHTML = billedAddress.replace(/\n/g, '<br>');
+            document.getElementById('prevBilledName').textContent = d.get('billedToName');
+            document.getElementById('prevBilledAddress').innerHTML = d.get('billedToAddress').replace(/\n/g, '<br>');
             document.getElementById('prevDueDate').textContent = due.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
 
             const tbody = document.getElementById('prevItemsBody');
@@ -308,23 +208,24 @@
             });
 
             updateTotals();
-            invoicePreview.style.display = 'block';
-            window.scrollTo({top: invoicePreview.offsetTop - 40, behavior:'smooth'});
-        });
+            document.getElementById('invoicePreview').style.display = 'block';
+            window.scrollTo({top: document.getElementById('invoicePreview').offsetTop - 40, behavior:'smooth'});
+        };
 
-        downloadButton.addEventListener('click', () => {
-            if (invoicePreview.style.display === 'none') return alert('Generate invoice first');
-            html2canvas(invoicePreview, {scale: 1, useCORS: true}).then(canvas => {
+        document.getElementById('downloadPDF').onclick = () => {
+            const el = document.getElementById('invoicePreview');
+            if (el.style.display === 'none') return alert('Generate invoice first');
+            html2canvas(el, {scale: 2, useCORS: true}).then(canvas => {
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
-                pdf.addImage(canvas.toDataURL('image/jpeg', 0.6), 'JPEG', 0, 0, 210, 297);
-                pdf.save(`invoice_${document.getElementById('invoiceNoInput').value.trim() || 'draft'}.pdf');
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+                pdf.save(`invoice_${form.invoiceNo.value.trim() || 'draft'}.pdf`);
             });
-        });
+        };
 
-        clearButton.addEventListener('click', () => {
+        document.getElementById('clearForm').onclick = () => {
             if (confirm('Clear form?')) location.reload();
-        });
+        };
     </script>
 </body>
 </html>
