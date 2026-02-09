@@ -8,30 +8,30 @@
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; padding: 15px; background:#f8f8f8; }
-        form { max-width: 800px; margin: auto; background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
-        label { display:block; margin:12px 0 4px; font-weight:bold; }
-        input, select, textarea { width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; }
-        button { padding:10px 16px; margin:8px 4px 8px 0; border:none; border-radius:4px; cursor:pointer; }
-        button.primary { background:#b0a295; color:white; }
-        button.secondary { background:#555; color:white; }
-        #items { margin:20px 0; }
-        .item-row { display:grid; grid-template-columns:3fr 1fr 1fr 1fr auto; gap:12px; margin:12px 0; align-items:center; }
-        #invoicePreview { max-width:800px; margin:30px auto; padding:30px; background:white; border:1px solid #ddd; box-shadow:0 4px 15px rgba(0,0,0,0.15); display:none; font-size:14px; }
-        .header { background:#b0a295; color:white; padding:20px; display:flex; justify-content:space-between; align-items:center; border-radius:4px 4px 0 0; }
-        .logo-container { text-align:center; margin:20px 0; }
-        .logo-img { max-width:180px; height:auto; }
-        .info-row { display:flex; justify-content:space-between; margin:15px 0; font-weight:bold; }
-        .billed-to { margin:25px 0; line-height:1.5; }
-        table.items-table { width:100%; border-collapse:collapse; margin:20px 0; }
-        .items-table th { background:#b0a295; color:white; padding:10px; text-align:left; }
-        .items-table td { padding:10px; border-bottom:1px solid #eee; }
-        .totals { text-align:right; margin:25px 0; }
-        .totals div { margin:8px 0; padding:8px; width:240px; margin-left:auto; }
-        .totals .grand { background:#b0a295; color:white; font-weight:bold; }
-        .payment { display:flex; justify-content:space-between; margin:30px 0; font-size:13px; }
-        .note { text-align:center; font-size:12px; color:#444; margin-top:30px; }
-        @media print { #formSection { display:none; } #invoicePreview { border:none; box-shadow:none; padding:0; margin:0; } }
+        body { font-family: Arial, sans-serif; padding: 15px; background: #f8f8f8; margin: 0; }
+        form { max-width: 900px; margin: auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+        label { display: block; margin: 12px 0 4px; font-weight: bold; }
+        input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 18px; margin: 8px 6px 8px 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button.primary { background: #8b7d6b; color: white; }
+        button.secondary { background: #666; color: white; }
+        #itemsContainer .item-row { display: grid; grid-template-columns: 4fr 1fr 1.5fr 1.5fr auto; gap: 12px; margin: 12px 0; align-items: center; }
+        #invoicePreview { max-width: 900px; margin: 30px auto; padding: 40px 30px; background: white; border: 1px solid #ccc; box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: none; font-size: 13px; line-height: 1.4; }
+        .header { background: #8b7d6b; color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold; }
+        .logo-container { text-align: center; margin: 25px 0 35px; }
+        .logo-img { max-width: 220px; height: auto; }
+        .info-row { display: flex; justify-content: space-between; margin: 20px 0; font-size: 15px; font-weight: bold; }
+        .billed-to { margin: 30px 0; line-height: 1.6; }
+        table.items-table { width: 100%; border-collapse: collapse; margin: 25px 0; }
+        .items-table th { background: #8b7d6b; color: white; padding: 10px 12px; text-align: left; font-size: 14px; }
+        .items-table td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+        .totals { text-align: right; margin: 30px 0; }
+        .totals div { margin: 10px 0; padding: 8px 12px; width: 280px; margin-left: auto; font-size: 14px; }
+        .totals .sub { border-top: 1px solid #ccc; }
+        .totals .grand { background: #8b7d6b; color: white; font-weight: bold; font-size: 16px; }
+        .payment { display: flex; justify-content: space-between; margin: 40px 0 30px; font-size: 13px; }
+        .note { text-align: center; font-size: 12px; color: #444; margin-top: 40px; }
+        @media print { #formSection { display: none; } #invoicePreview { border: none; box-shadow: none; padding: 0; margin: 0; width: 100%; } }
     </style>
 </head>
 <body>
@@ -40,39 +40,31 @@
 
     <section id="formSection">
         <form id="invoiceForm">
-
-            <label>Invoice Number</label>
+            <label>Invoice No.</label>
             <input type="text" name="invoiceNo" required placeholder="e.g. 20251220512">
 
             <label>Date</label>
             <input type="date" name="date" required>
 
-            <label>Billed To (Customer Name)</label>
+            <label>Billed To (Name)</label>
             <input type="text" name="billedToName" required placeholder="e.g. PS BANDAR BARU NILAI">
 
             <label>Billed To Address</label>
-            <textarea name="billedToAddress" rows="4" required placeholder="Full address..."></textarea>
+            <textarea name="billedToAddress" rows="5" required placeholder="Full address on multiple lines..."></textarea>
 
             <div id="items">
                 <h3>Items</h3>
-                <div class="item-row template" style="display:none;">
-                    <input type="text" class="item-desc" placeholder="Item description">
-                    <input type="number" class="item-qty" min="1" placeholder="Qty">
-                    <input type="number" class="item-unit" step="0.01" placeholder="Unit Price (RM)">
-                    <input type="text" class="item-total" readonly placeholder="Total">
-                    <button type="button" class="remove secondary">Remove</button>
-                </div>
                 <div id="itemsContainer"></div>
                 <button type="button" id="addItem" class="primary">+ Add Item</button>
             </div>
 
             <label>Discount (RM)</label>
-            <input type="number" name="discount" step="0.01" value="0.00">
+            <input type="number" name="discount" step="0.01" min="0" value="0.00">
 
-            <div style="margin:20px 0;">
+            <div style="margin: 30px 0;">
                 <button type="submit" class="primary">Generate Invoice</button>
                 <button type="button" id="downloadPDF" class="primary">Download PDF</button>
-                <button type="button" id="clearForm" class="secondary">Clear</button>
+                <button type="button" id="clearForm" class="secondary">Clear Form</button>
             </div>
         </form>
     </section>
@@ -84,8 +76,8 @@
         </div>
 
         <div class="logo-container">
-            <!-- Replace with your actual logo URL or base64 -->
-            <img src="https://via.placeholder.com/180x80/333/fff?text=LH+VENTURES+LOGO" alt="LH Ventures Logo" class="logo-img">
+            <img src="https://via.placeholder.com/220x90/8b7d6b/fff?text=LH+VENTURES" alt="LH Ventures Logo" class="logo-img">
+            <!-- Replace URL above with your real logo URL after uploading to GitHub -->
         </div>
 
         <div class="info-row">
@@ -112,15 +104,15 @@
         </table>
 
         <div class="totals">
-            <div>Subtotal <span id="prevSubtotal">RM0.00</span></div>
+            <div class="sub">Subtotal <span id="prevSubtotal">RM0.00</span></div>
             <div>Discount <span id="prevDiscount">RM0.00</span></div>
             <div class="grand">Grand Total <span id="prevGrandTotal">RM0.00</span></div>
         </div>
 
         <div class="payment">
             <div>
-                Please settle your payment on or before:<br>
-                <strong><span id="prevDueDate"></span></strong>
+                Please settle your payment within two weeks from invoice date.<br>
+                Payment due on or before: <strong><span id="prevDueDate"></span></strong>
             </div>
             <div>
                 Bank Name: Maybank<br>
@@ -130,69 +122,68 @@
         </div>
 
         <div class="note">
-            We appreciate your business! 1% of each invoice will be donated to our local orphanage.
+            Thank you for your business.
         </div>
     </section>
 
     <script>
         const form = document.getElementById('invoiceForm');
         const itemsContainer = document.getElementById('itemsContainer');
-        const template = document.querySelector('.item-row.template');
 
-        function addItemRow() {
-            const row = template.cloneNode(true);
-            row.classList.remove('template');
-            row.style.display = 'grid';
+        function addItemRow(desc='', qty='', unit='') {
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.innerHTML = `
+                <input type="text" class="item-desc" value="${desc}" placeholder="Item description" required>
+                <input type="number" class="item-qty" min="1" value="${qty}" placeholder="Qty">
+                <input type="number" class="item-unit" step="0.01" value="${unit}" placeholder="Unit Price (RM)">
+                <input type="text" class="item-total" readonly placeholder="Total">
+                <button type="button" class="secondary">Remove</button>
+            `;
             itemsContainer.appendChild(row);
 
-            const qty = row.querySelector('.item-qty');
-            const unit = row.querySelector('.item-unit');
-            const total = row.querySelector('.item-total');
+            const qtyEl = row.querySelector('.item-qty');
+            const unitEl = row.querySelector('.item-unit');
+            const totalEl = row.querySelector('.item-total');
 
             const calc = () => {
-                const q = parseFloat(qty.value) || 0;
-                const u = parseFloat(unit.value) || 0;
-                total.value = 'RM' + (q * u).toFixed(2);
+                const q = parseFloat(qtyEl.value) || 0;
+                const u = parseFloat(unitEl.value) || 0;
+                totalEl.value = 'RM' + (q * u).toFixed(2);
             };
 
-            qty.addEventListener('input', calc);
-            unit.addEventListener('input', calc);
-
-            row.querySelector('.remove').onclick = () => {
-                row.remove();
-                updateTotals();
-            };
+            qtyEl.addEventListener('input', calc);
+            unitEl.addEventListener('input', calc);
+            row.querySelector('button').onclick = () => { row.remove(); updateTotals(); };
+            calc();
         }
 
         function updateTotals() {
-            let subtotal = 0;
-            document.querySelectorAll('.item-total').forEach(el => {
-                subtotal += parseFloat(el.value.replace('RM','')) || 0;
-            });
+            let sub = 0;
+            document.querySelectorAll('.item-total').forEach(el => sub += parseFloat(el.value.replace('RM','')) || 0);
             const disc = parseFloat(form.discount.value) || 0;
-            document.getElementById('prevSubtotal').textContent = 'RM' + subtotal.toFixed(2);
+            document.getElementById('prevSubtotal').textContent = 'RM' + sub.toFixed(2);
             document.getElementById('prevDiscount').textContent = 'RM' + disc.toFixed(2);
-            document.getElementById('prevGrandTotal').textContent = 'RM' + (subtotal - disc).toFixed(2);
+            document.getElementById('prevGrandTotal').textContent = 'RM' + (sub - disc).toFixed(2);
         }
 
-        document.getElementById('addItem').onclick = addItemRow;
+        document.getElementById('addItem').onclick = () => addItemRow();
 
-        // Start with two empty rows
-        addItemRow();
-        addItemRow();
+        // Pre-fill example items
+        addItemRow('CRISPY CHIPS IKAN', 30, 18.00);
+        addItemRow('SO CHEWS (MIXED FLAVOR)', 200, 3.50);
 
         form.onsubmit = e => {
             e.preventDefault();
-
             const d = new FormData(form);
-            const date = new Date(d.get('date'));
-            const due = new Date(date);
-            due.setDate(due.getDate() + 30); // example 30 days
+            const invDate = new Date(d.get('date'));
+            const due = new Date(invDate);
+            due.setDate(due.getDate() + 14);
 
             document.getElementById('prevInvoiceNo').textContent = d.get('invoiceNo');
-            document.getElementById('prevDate').textContent = date.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+            document.getElementById('prevDate').textContent = invDate.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
             document.getElementById('prevBilledName').textContent = d.get('billedToName');
-            document.getElementById('prevBilledAddress').textContent = d.get('billedToAddress').replace(/\n/g,'<br>');
+            document.getElementById('prevBilledAddress').innerHTML = d.get('billedToAddress').replace(/\n/g, '<br>');
             document.getElementById('prevDueDate').textContent = due.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
 
             const tbody = document.getElementById('prevItemsBody');
@@ -212,22 +203,22 @@
 
             updateTotals();
             document.getElementById('invoicePreview').style.display = 'block';
-            window.scrollTo({top: document.getElementById('invoicePreview').offsetTop - 20, behavior:'smooth'});
+            window.scrollTo({top: document.getElementById('invoicePreview').offsetTop - 40, behavior: 'smooth'});
         };
 
         document.getElementById('downloadPDF').onclick = () => {
             const el = document.getElementById('invoicePreview');
             if (el.style.display === 'none') return alert('Generate invoice first');
-            html2canvas(el, {scale:2}).then(canvas => {
+            html2canvas(el, {scale: 2, useCORS: true}).then(canvas => {
                 const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p','mm','a4');
+                const pdf = new jsPDF('p', 'mm', 'a4');
                 pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
                 pdf.save(`invoice_${form.invoiceNo.value.trim() || 'draft'}.pdf`);
             });
         };
 
         document.getElementById('clearForm').onclick = () => {
-            if (confirm('Clear all fields?')) location.reload();
+            if (confirm('Clear form?')) location.reload();
         };
     </script>
 </body>
