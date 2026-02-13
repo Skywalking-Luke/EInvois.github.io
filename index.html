@@ -36,6 +36,12 @@
         .note { text-align: center; font-size: 9pt; color: #444; margin: 10mm 0; }
         .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 20mm; font-size: 8pt; }
         .footer img { max-height: 15mm; width: auto; }
+        
+        /* New helper for clearing memory */
+        .utility-links { font-size: 12px; margin-top: 10px; text-align: right; }
+        .utility-links a { color: #888; text-decoration: none; cursor: pointer; }
+        .utility-links a:hover { text-decoration: underline; color: #d9534f; }
+
         @media (max-width: 600px) { #itemsContainer .item-row { grid-template-columns: 1fr; gap: 10px; } .item-row input { font-size: 16px; } }
         @media print { #formSection { display: none; } #invoicePreview { margin: 0; padding: 20mm 15mm 40mm 15mm; box-shadow: none; border: none; width: 210mm; height: 297mm; } }
     </style>
@@ -43,6 +49,9 @@
 <body>
 
     <h1>LH Ventures Invoice Generator</h1>
+
+    <datalist id="customerList"></datalist>
+    <datalist id="itemList"></datalist>
 
     <section id="formSection">
         <form id="invoiceForm">
@@ -53,10 +62,10 @@
             <input type="date" name="date" required>
 
             <label>Billed To (Name)</label>
-            <input type="text" name="billedToName" required placeholder="e.g. PS BANDAR BARU NILAI">
+            <input type="text" name="billedToName" id="billedToName" list="customerList" required placeholder="Start typing name..." autocomplete="off">
 
             <label>Billed To Address</label>
-            <textarea name="billedToAddress" rows="5" required placeholder="Full address..."></textarea>
+            <textarea name="billedToAddress" id="billedToAddress" rows="5" required placeholder="Full address..."></textarea>
 
             <div id="items">
                 <h3>Items</h3>
@@ -71,6 +80,10 @@
                 <button type="submit" class="primary">Generate Invoice</button>
                 <button type="button" id="downloadPDF" class="primary">Download PDF</button>
                 <button type="button" id="clearForm" class="secondary">Clear Form</button>
+                
+                <div class="utility-links">
+                    <a id="resetMemory">Reset Saved Data</a>
+                </div>
             </div>
         </form>
     </section>
@@ -133,6 +146,68 @@
     </section>
 
     <script>
+        // --- MEMORY / DATA STORAGE LOGIC ---
+        const STORAGE_KEY_CUSTOMERS = 'lh_customers';
+        const STORAGE_KEY_ITEMS = 'lh_items';
+
+        // Load data from LocalStorage or initialize empty arrays
+        let savedCustomers = JSON.parse(localStorage.getItem(STORAGE_KEY_CUSTOMERS)) || [];
+        let savedItems = JSON.parse(localStorage.getItem(STORAGE_KEY_ITEMS)) || [];
+
+        // Function to populate datalists (dropdowns)
+        function refreshDatalists() {
+            const customerList = document.getElementById('customerList');
+            const itemList = document.getElementById('itemList');
+
+            customerList.innerHTML = '';
+            savedCustomers.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.name;
+                customerList.appendChild(opt);
+            });
+
+            itemList.innerHTML = '';
+            savedItems.forEach(i => {
+                const opt = document.createElement('option');
+                opt.value = i.desc;
+                itemList.appendChild(opt);
+            });
+        }
+
+        // Initialize lists on load
+        refreshDatalists();
+
+        // --- FORM AUTOFILL LOGIC ---
+        
+        // 1. Customer Autofill
+        const billedToNameInput = document.getElementById('billedToName');
+        const billedToAddressInput = document.getElementById('billedToAddress');
+
+        billedToNameInput.addEventListener('input', function() {
+            const val = this.value;
+            const found = savedCustomers.find(c => c.name.toLowerCase() === val.toLowerCase());
+            if (found) {
+                billedToAddressInput.value = found.address;
+            }
+        });
+
+        // 2. Item Autofill Logic (Used inside addItemRow)
+        function attachItemAutofill(descInput, unitInput) {
+            descInput.setAttribute('list', 'itemList'); // Connect to datalist
+            
+            descInput.addEventListener('input', function() {
+                const val = this.value;
+                const found = savedItems.find(i => i.desc.toLowerCase() === val.toLowerCase());
+                if (found) {
+                    unitInput.value = found.price;
+                    // Trigger calculation update
+                    unitInput.dispatchEvent(new Event('input'));
+                }
+            });
+        }
+
+        // --- EXISTING LOGIC (Modified) ---
+
         const form = document.getElementById('invoiceForm');
         const itemsContainer = document.getElementById('itemsContainer');
 
@@ -140,7 +215,7 @@
             const row = document.createElement('div');
             row.className = 'item-row';
             row.innerHTML = `
-                <input type="text" class="item-desc" value="${desc}" placeholder="Item description" required>
+                <input type="text" class="item-desc" value="${desc}" placeholder="Item description" required autocomplete="off">
                 <input type="number" class="item-qty" min="1" value="${qty}" placeholder="Qty">
                 <input type="number" class="item-unit" step="0.01" value="${unit}" placeholder="Unit Price (RM)">
                 <input type="text" class="item-total" readonly placeholder="Total">
@@ -148,9 +223,13 @@
             `;
             itemsContainer.appendChild(row);
 
+            const descEl = row.querySelector('.item-desc');
             const qtyEl = row.querySelector('.item-qty');
             const unitEl = row.querySelector('.item-unit');
             const totalEl = row.querySelector('.item-total');
+
+            // Attach the memory autofill to this new row
+            attachItemAutofill(descEl, unitEl);
 
             const calc = () => {
                 const q = parseFloat(qtyEl.value) || 0;
@@ -160,6 +239,9 @@
 
             qtyEl.addEventListener('input', calc);
             unitEl.addEventListener('input', calc);
+            // Add calculation listener to desc in case autofill changes price
+            descEl.addEventListener('change', calc); 
+
             row.querySelector('button').onclick = () => { row.remove(); updateTotals(); };
             calc();
         }
@@ -175,12 +257,40 @@
 
         document.getElementById('addItem').onclick = () => addItemRow();
 
-        addItemRow('CRISPY CHIPS IKAN', 30, 18.00);
-        addItemRow('SO CHEWS (MIXED FLAVOR)', 200, 3.50);
+        // Default item (example)
+        addItemRow(); 
 
         form.onsubmit = e => {
             e.preventDefault();
             const d = new FormData(form);
+            
+            // --- SAVE NEW DATA TO MEMORY ---
+            // 1. Save Customer
+            const newName = d.get('billedToName').trim();
+            const newAddr = d.get('billedToAddress').trim();
+            if (newName && newAddr) {
+                // Remove existing entry with same name to update it
+                savedCustomers = savedCustomers.filter(c => c.name.toLowerCase() !== newName.toLowerCase());
+                savedCustomers.push({ name: newName, address: newAddr });
+                localStorage.setItem(STORAGE_KEY_CUSTOMERS, JSON.stringify(savedCustomers));
+            }
+
+            // 2. Save Items
+            document.querySelectorAll('#itemsContainer .item-row').forEach(r => {
+                const iDesc = r.querySelector('.item-desc').value.trim();
+                const iPrice = r.querySelector('.item-unit').value;
+                if (iDesc && iPrice) {
+                    // Remove existing entry with same desc to update it
+                    savedItems = savedItems.filter(i => i.desc.toLowerCase() !== iDesc.toLowerCase());
+                    savedItems.push({ desc: iDesc, price: iPrice });
+                }
+            });
+            localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(savedItems));
+            
+            // Update Datalists for next time
+            refreshDatalists();
+            // -------------------------------
+
             const invDate = new Date(d.get('date'));
             const due = new Date(invDate);
             due.setDate(due.getDate() + 30);
@@ -223,7 +333,19 @@
         };
 
         document.getElementById('clearForm').onclick = () => {
-            if (confirm('Clear form?')) location.reload();
+            if (confirm('Clear form fields?')) {
+                // We reload to clear, but localStorage remains
+                location.reload();
+            }
+        };
+
+        // Utility to wipe memory if needed
+        document.getElementById('resetMemory').onclick = () => {
+            if(confirm('Are you sure you want to delete all saved customers and items?')) {
+                localStorage.removeItem(STORAGE_KEY_CUSTOMERS);
+                localStorage.removeItem(STORAGE_KEY_ITEMS);
+                location.reload();
+            }
         };
     </script>
 </body>
